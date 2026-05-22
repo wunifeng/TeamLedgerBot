@@ -1,0 +1,23 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: teamledger_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: teamledger
+      POSTGRES_PASSWORD: teamledger_dev
+      POSTGRES_DB: teamledger_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U teamledger -d teamledger_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

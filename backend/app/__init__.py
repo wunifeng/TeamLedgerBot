@@ -1,0 +1,1 @@
+"""TeamLedgerBot Backend Application."""
