@@ -4,7 +4,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import ForeignKey, Numeric, String, Text, func, text
+from sqlalchemy import Boolean, ForeignKey, Numeric, String, Text, func, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import TIMESTAMP
@@ -61,6 +61,10 @@ class Transaction(Base):
         nullable=False,
         server_default=text("NOW()"),
         onupdate=func.now(),
+    )
+    # Soft-delete flag — records are never physically removed
+    is_deleted: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("FALSE"), index=True
     )
 
     # ── Relationships ─────────────────────────────────────────

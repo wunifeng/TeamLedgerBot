@@ -72,3 +72,9 @@ class TransactionListResponse(BaseModel):
     page: int
     limit: int
     pages: int
+
+
+class TransactionWriteResponse(BaseModel):
+    """Response returned by income / expense / salary write endpoints."""
+    transaction: TransactionResponse
+    alerts: List[str] = []

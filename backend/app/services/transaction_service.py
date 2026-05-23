@@ -1,11 +1,11 @@
 """Transaction service — create income/expense/salary, run risk checks."""
 import logging
+import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Optional
-import uuid
 
-from sqlalchemy import and_, desc, func, or_, select
+from sqlalchemy import and_, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -39,7 +39,7 @@ def _to_response(tx: Transaction) -> TransactionResponse:
 
 
 async def _load_tx(session: AsyncSession, tx_id: uuid.UUID) -> Transaction:
-    """Reload transaction with relationships."""
+    """Reload transaction with relationships (ignores is_deleted for internal use)."""
     stmt = (
         select(Transaction)
         .options(selectinload(Transaction.member), selectinload(Transaction.category))
@@ -63,7 +63,7 @@ async def create_income(
         category_id=data.category_id,
         member_id=data.member_id,
         remark=data.remark,
-        **({"created_at": data.timestamp} if data.timestamp else {}),
+        **( {"created_at": data.timestamp} if data.timestamp else {}),
     )
     session.add(tx)
     await session.flush()
@@ -83,7 +83,7 @@ async def create_expense(
         category_id=data.category_id,
         member_id=data.member_id,
         remark=data.remark,
-        **({"created_at": data.timestamp} if data.timestamp else {}),
+        **( {"created_at": data.timestamp} if data.timestamp else {}),
     )
     session.add(tx)
     await session.flush()
@@ -104,12 +104,50 @@ async def create_salary(
         member_id=data.member_id,
         bonus=data.bonus,
         remark=data.remark,
-        **({"created_at": data.timestamp} if data.timestamp else {}),
+        **( {"created_at": data.timestamp} if data.timestamp else {}),
     )
     session.add(tx)
     await session.flush()
     tx = await _load_tx(session, tx.id)
     return _to_response(tx), alerts
+
+
+# ── Soft-delete ────────────────────────────────────────────────────────────────
+
+async def delete_transaction(
+    session: AsyncSession, tx_id: uuid.UUID
+) -> TransactionResponse:
+    """Soft-delete a transaction by setting is_deleted=True.
+
+    Returns the updated record so the caller can confirm deletion.
+    Raises NoResultFound if the transaction does not exist or is already deleted.
+    """
+    stmt = (
+        select(Transaction)
+        .options(selectinload(Transaction.member), selectinload(Transaction.category))
+        .where(Transaction.id == tx_id, Transaction.is_deleted.is_(False))
+    )
+    result = await session.execute(stmt)
+    tx = result.scalar_one()   # raises NoResultFound if missing
+    tx.is_deleted = True
+    await session.flush()
+    return _to_response(tx)
+
+
+# ── Single record fetch ────────────────────────────────────────────────────────
+
+async def get_transaction(
+    session: AsyncSession, tx_id: uuid.UUID
+) -> TransactionResponse:
+    """Fetch a single non-deleted transaction."""
+    stmt = (
+        select(Transaction)
+        .options(selectinload(Transaction.member), selectinload(Transaction.category))
+        .where(Transaction.id == tx_id, Transaction.is_deleted.is_(False))
+    )
+    result = await session.execute(stmt)
+    tx = result.scalar_one()   # raises NoResultFound if missing
+    return _to_response(tx)
 
 
 # ── List / query ───────────────────────────────────────────────────────────────
@@ -126,7 +164,8 @@ async def list_transactions(
     limit = min(limit, 100)
     offset = (page - 1) * limit
 
-    filters = []
+    # Always exclude soft-deleted records
+    filters = [Transaction.is_deleted.is_(False)]
     if tx_type:
         filters.append(Transaction.type == tx_type)
     if member_id:
@@ -136,7 +175,7 @@ async def list_transactions(
     if end_date:
         filters.append(Transaction.created_at <= end_date)
 
-    where = and_(*filters) if filters else True
+    where = and_(*filters)
 
     count_stmt = select(func.count()).select_from(Transaction).where(where)
     total = await session.scalar(count_stmt) or 0

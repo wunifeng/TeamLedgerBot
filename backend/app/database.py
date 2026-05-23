@@ -11,13 +11,16 @@ from sqlalchemy.orm import DeclarativeBase
 
 from app.config import settings
 
-# Build SSL context for asyncpg (required for Neon on Windows)
-_ssl_context = ssl.create_default_context()
-
 # Strip ssl/sslmode from URL — pass SSL via connect_args instead
 _db_url = settings.DATABASE_URL.replace("?ssl=require", "").replace(
     "?sslmode=require", ""
 ).replace("&ssl=require", "").replace("&sslmode=require", "")
+
+# Build connect_args conditionally (only use SSL for external databases requiring it)
+connect_args = {}
+if "ssl=require" in settings.DATABASE_URL or "sslmode=require" in settings.DATABASE_URL:
+    _ssl_context = ssl.create_default_context()
+    connect_args["ssl"] = _ssl_context
 
 # ── Engine ────────────────────────────────────────────────────────────────────
 engine = create_async_engine(
@@ -26,7 +29,7 @@ engine = create_async_engine(
     pool_pre_ping=True,
     pool_size=5,
     max_overflow=10,
-    connect_args={"ssl": _ssl_context},
+    connect_args=connect_args,
 )
 
 # ── Session Factory ───────────────────────────────────────────────────────────
