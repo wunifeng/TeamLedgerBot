@@ -20,6 +20,8 @@ _db_url = settings.DATABASE_URL.replace("?ssl=require", "").replace(
 connect_args = {}
 if "ssl=require" in settings.DATABASE_URL or "sslmode=require" in settings.DATABASE_URL:
     _ssl_context = ssl.create_default_context()
+    _ssl_context.check_hostname = False
+    _ssl_context.verify_mode = ssl.CERT_NONE
     connect_args["ssl"] = _ssl_context
 
 # ── Engine ────────────────────────────────────────────────────────────────────

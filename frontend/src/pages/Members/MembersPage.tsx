@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { UserPlus, Users, Wallet, BadgeCheck } from 'lucide-react'
+import { UserPlus, Users, Wallet, BadgeCheck, MoreHorizontal, Power, PowerOff } from 'lucide-react'
 import { format } from 'date-fns'
 import { membersApi, transactionsApi } from '@/services/api'
 import type { MemberResponse } from '@/types/api'
@@ -8,7 +8,7 @@ import { useApp } from '@/context/AppContext'
 import { Modal } from '@/components/UI/Modal'
 import { AddTransactionModal } from '@/components/Forms/AddTransactionModal'
 
-function MemberCard({ member, onSettle, delay }: { member: MemberResponse; onSettle: (m: MemberResponse) => void; delay: number }) {
+function MemberCard({ member, onSettle, onEdit, delay }: { member: MemberResponse; onSettle: (m: MemberResponse) => void; onEdit: (m: MemberResponse) => void; delay: number }) {
   const initials = member.name.slice(0, 2).toUpperCase()
   const colors = ['#6366f1', '#10b981', '#f59e0b', '#8b5cf6', '#f43f5e', '#06b6d4']
   const color = colors[member.name.charCodeAt(0) % colors.length]
@@ -22,7 +22,7 @@ function MemberCard({ member, onSettle, delay }: { member: MemberResponse; onSet
       whileHover={{ y: -3 }}
       style={{ padding: '20px', cursor: 'default' }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16, position: 'relative' }}>
         <div style={{
           width: 44, height: 44, borderRadius: 14,
           background: `${color}25`,
@@ -39,9 +39,20 @@ function MemberCard({ member, onSettle, delay }: { member: MemberResponse; onSet
             {member.role ?? '团队成员'} · 加入于 {format(new Date(member.created_at), 'yyyy-MM')}
           </div>
         </div>
-        {member.is_active && (
+        {member.is_active ? (
           <BadgeCheck size={16} style={{ marginLeft: 'auto', color: 'var(--color-income)', flexShrink: 0 }} />
+        ) : (
+          <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--color-expense)', backgroundColor: 'var(--color-expense)20', padding: '2px 6px', borderRadius: 6, flexShrink: 0 }}>已退出</span>
         )}
+
+        <button 
+          onClick={() => onEdit(member)}
+          className="btn btn-ghost btn-sm"
+          style={{ position: 'absolute', top: -14, right: -14, padding: 4, color: 'var(--text-muted)' }}
+          title="编辑成员"
+        >
+          <MoreHorizontal size={18} />
+        </button>
       </div>
 
       <div
@@ -84,10 +95,17 @@ export default function MembersPage() {
   const [newRole, setNewRole] = useState('')
   const [adding, setAdding] = useState(false)
 
+  // Edit member form
+  const [editMemberTarget, setEditMemberTarget] = useState<MemberResponse | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editRole, setEditRole] = useState('')
+  const [editIsActive, setEditIsActive] = useState(true)
+  const [editing, setEditing] = useState(false)
+
   const loadMembers = useCallback(async () => {
     setLoading(true)
     try {
-      setMembers(await membersApi.list())
+      setMembers(await membersApi.list(true))
     } catch (e: any) {
       showToast(e.message, 'error')
     } finally {
@@ -118,6 +136,33 @@ export default function MembersPage() {
     setSalaryModalOpen(true)
   }
 
+  const handleEditOpen = (member: MemberResponse) => {
+    setEditMemberTarget(member)
+    setEditName(member.name)
+    setEditRole(member.role || '')
+    setEditIsActive(member.is_active)
+  }
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editMemberTarget || !editName.trim()) return
+    setEditing(true)
+    try {
+      await membersApi.update(editMemberTarget.id, { 
+        name: editName.trim(), 
+        role: editRole.trim() || undefined,
+        is_active: editIsActive
+      })
+      showToast(`成员 ${editName.trim()} 信息已更新`, 'success')
+      setEditMemberTarget(null)
+      loadMembers()
+    } catch (err: any) {
+      showToast(err.message, 'error')
+    } finally {
+      setEditing(false)
+    }
+  }
+
   return (
     <>
       <div style={{ marginBottom: 24 }}>
@@ -144,7 +189,7 @@ export default function MembersPage() {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
           {members.map((m, i) => (
-            <MemberCard key={m.id} member={m} onSettle={handleSettle} delay={i * 0.06} />
+            <MemberCard key={m.id} member={m} onSettle={handleSettle} onEdit={handleEditOpen} delay={i * 0.06} />
           ))}
         </div>
       )}
@@ -181,6 +226,75 @@ export default function MembersPage() {
             </button>
           </div>
         </form>
+      </Modal>
+
+      {/* Edit member modal */}
+      <Modal isOpen={!!editMemberTarget} onClose={() => setEditMemberTarget(null)} title="编辑团队成员">
+        {editMemberTarget && (
+          <form onSubmit={handleEditSubmit}>
+            <div className="form-group">
+              <label className="form-label">姓名 *</label>
+              <input
+                className="form-input"
+                type="text"
+                placeholder="例：张三"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">角色（可选）</label>
+              <input
+                className="form-input"
+                type="text"
+                placeholder="例：开发、设计、运营"
+                value={editRole}
+                onChange={(e) => setEditRole(e.target.value)}
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                状态
+              </label>
+              <div 
+                style={{ 
+                  display: 'flex', alignItems: 'center', gap: 12, 
+                  padding: '12px 16px', background: 'var(--bg-secondary)', 
+                  borderRadius: 12, border: '1px solid var(--border-color)',
+                  cursor: 'pointer'
+                }}
+                onClick={() => setEditIsActive(!editIsActive)}
+              >
+                <div style={{
+                  width: 40, height: 24, borderRadius: 12,
+                  background: editIsActive ? 'var(--color-income)' : 'var(--color-expense)',
+                  position: 'relative', transition: 'all 0.2s', flexShrink: 0
+                }}>
+                  <div style={{
+                    width: 20, height: 20, borderRadius: '50%', background: '#fff',
+                    position: 'absolute', top: 2, left: editIsActive ? 18 : 2,
+                    transition: 'all 0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                  }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: editIsActive ? 'var(--color-income)' : 'var(--color-expense)' }}>
+                    {editIsActive ? '在职' : '已退出'}
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                    {editIsActive ? '成员可以在新增账单中选择' : '退出后将不会在新增账单列表中出现'}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+              <button type="button" className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setEditMemberTarget(null)}>取消</button>
+              <button type="submit" className="btn btn-primary" style={{ flex: 2 }} disabled={editing}>
+                {editing ? '保存中...' : '保存更改'}
+              </button>
+            </div>
+          </form>
+        )}
       </Modal>
 
       {/* Salary settle modal - reuse AddTransactionModal pre-filled */}

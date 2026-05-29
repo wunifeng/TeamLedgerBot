@@ -23,6 +23,21 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan: startup and shutdown events."""
     logger.info("🚀 TeamLedgerBot API starting up (env=%s)", settings.APP_ENV)
+    
+    # Run Alembic migrations in a background subprocess to avoid healthcheck blocking
+    try:
+        import subprocess
+        logger.info("🔄 Running database migrations via Alembic...")
+        process = subprocess.Popen(
+            ["alembic", "upgrade", "head"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        logger.info("⚡ Alembic migrations started in background (PID: %d)", process.pid)
+    except Exception as e:
+        logger.error("❌ Failed to start Alembic migrations: %s", e)
+
     yield
     logger.info("🛑 TeamLedgerBot API shutting down")
     await engine.dispose()

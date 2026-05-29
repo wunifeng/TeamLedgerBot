@@ -56,6 +56,8 @@ async def run_async_migrations() -> None:
     """Create async engine and run migrations."""
     import ssl as _ssl
     ssl_context = _ssl.create_default_context()
+    ssl_context.check_hostname = False
+    ssl_context.verify_mode = _ssl.CERT_NONE
 
     # Strip SSL params from URL — pass via connect_args
     db_url = settings.DATABASE_URL.replace("?ssl=require", "").replace(
