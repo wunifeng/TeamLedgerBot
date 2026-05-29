@@ -2,6 +2,7 @@
 
 export type TransactionType = 'income' | 'expense' | 'salary'
 export type CategoryType = 'income' | 'expense'
+export type SalarySettlementStatus = 'unpaid' | 'partial' | 'paid'
 
 // Dashboard
 export interface SummaryResponse {
@@ -19,6 +20,7 @@ export interface DailyTrendItem {
   date: string // YYYY-MM-DD
   income: number
   expense: number
+  salary: number
   net: number
 }
 
@@ -63,6 +65,7 @@ export interface TransactionResponse {
   category_name: string | null
   member_id: string
   member_name: string
+  salary_settlement_id: string | null
   remark: string | null
   bonus: number | null
   created_at: string
@@ -89,6 +92,35 @@ export interface MemberResponse {
   role: string | null
   is_active: boolean
   created_at: string
+}
+
+// Salary settlements
+export interface SalarySettlementResponse {
+  id: string
+  member_id: string
+  member_name: string
+  period_start: string
+  period_end: string
+  payable_amount: number
+  paid_amount: number
+  unpaid_amount: number
+  status: SalarySettlementStatus
+  remark: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface SalarySettlementListResponse {
+  items: SalarySettlementResponse[]
+  total_payable: number
+  total_paid: number
+  total_unpaid: number
+}
+
+export interface SalaryPaymentResponse {
+  settlement: SalarySettlementResponse
+  transaction: TransactionResponse
+  alerts: string[]
 }
 
 // Categories
@@ -121,6 +153,21 @@ export interface ExpenseCreate {
 export interface SalaryCreate {
   member_id: string
   salary_amount: number
+  bonus?: number
+  remark?: string
+  timestamp?: string
+}
+
+export interface SalarySettlementCreate {
+  member_id: string
+  period_start: string
+  period_end: string
+  payable_amount: number
+  remark?: string
+}
+
+export interface SalaryPaymentCreate {
+  amount: number
   bonus?: number
   remark?: string
   timestamp?: string

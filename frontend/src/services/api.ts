@@ -15,6 +15,11 @@ import type {
   MemberCreate,
   CategoryCreate,
   TransactionType,
+  SalarySettlementCreate,
+  SalarySettlementListResponse,
+  SalaryPaymentCreate,
+  SalaryPaymentResponse,
+  SalarySettlementResponse,
 } from '@/types/api'
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
@@ -60,6 +65,29 @@ export const transactionsApi = {
 
   createSalary: (data: SalaryCreate) =>
     apiClient.post<TransactionWriteResponse>('/api/salary', data).then((r) => r.data),
+}
+
+// ── Salary settlements ───────────────────────────────────────────────────────
+
+export const salaryApi = {
+  listSettlements: (params?: {
+    period_start?: string
+    period_end?: string
+    include_inactive?: boolean
+  }) =>
+    apiClient
+      .get<SalarySettlementListResponse>('/api/salary/settlements', { params })
+      .then((r) => r.data),
+
+  upsertSettlement: (data: SalarySettlementCreate) =>
+    apiClient
+      .post<SalarySettlementResponse>('/api/salary/settlements', data)
+      .then((r) => r.data),
+
+  paySettlement: (id: string, data: SalaryPaymentCreate) =>
+    apiClient
+      .post<SalaryPaymentResponse>(`/api/salary/settlements/${id}/pay`, data)
+      .then((r) => r.data),
 }
 
 // ── Members ───────────────────────────────────────────────────────────────────

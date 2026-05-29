@@ -14,6 +14,13 @@ from app.schemas.dashboard import (
     MonthlyTrendResponse,
     CategoryBreakdownResponse,
 )
+from app.schemas.salary import (
+    SalaryPaymentCreate,
+    SalaryPaymentResponse,
+    SalarySettlementCreate,
+    SalarySettlementListResponse,
+    SalarySettlementResponse,
+)
 
 __all__ = [
     "MemberCreate", "MemberUpdate", "MemberResponse",
@@ -22,4 +29,7 @@ __all__ = [
     "TransactionResponse", "TransactionListResponse",
     "SummaryResponse", "DailyTrendResponse",
     "MonthlyTrendResponse", "CategoryBreakdownResponse",
+    "SalaryPaymentCreate", "SalaryPaymentResponse",
+    "SalarySettlementCreate", "SalarySettlementListResponse",
+    "SalarySettlementResponse",
 ]

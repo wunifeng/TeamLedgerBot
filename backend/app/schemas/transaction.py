@@ -54,6 +54,7 @@ class TransactionResponse(BaseModel):
     category_name: Optional[str] = None
     member_id: uuid.UUID
     member_name: str = ""
+    salary_settlement_id: Optional[uuid.UUID] = None
     remark: Optional[str]
     bonus: Optional[Decimal]
     created_at: datetime

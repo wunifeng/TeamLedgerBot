@@ -25,6 +25,10 @@ logger = logging.getLogger(__name__)
 _ZERO = Decimal("0")
 
 
+def _salary_total_expr():
+    return Transaction.amount + func.coalesce(Transaction.bonus, 0)
+
+
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 def _active_tx_base(
@@ -49,6 +53,7 @@ async def get_summary(
 ) -> SummaryResponse:
     """Return aggregate totals and counts, optionally filtered by date range."""
     where = _active_tx_base(start_date, end_date)
+    salary_total = _salary_total_expr()
 
     stmt = select(
         func.sum(
@@ -58,7 +63,7 @@ async def get_summary(
             case((Transaction.type == "expense", Transaction.amount), else_=0)
         ).label("total_expense"),
         func.sum(
-            case((Transaction.type == "salary", Transaction.amount), else_=0)
+            case((Transaction.type == "salary", salary_total), else_=0)
         ).label("total_salary"),
         func.count().label("transaction_count"),
         func.sum(
@@ -82,7 +87,7 @@ async def get_summary(
         total_income=total_income,
         total_expense=total_expense,
         total_salary=total_salary,
-        net_profit=total_income - total_expense,
+        net_profit=total_income - total_expense - total_salary,
         transaction_count=row.transaction_count or 0,
         income_count=row.income_count or 0,
         expense_count=row.expense_count or 0,
@@ -99,6 +104,7 @@ async def get_daily_trend(
     """Return per-day income/expense totals for the last `days` days."""
     since = datetime.now(timezone.utc) - timedelta(days=days)
     where = _active_tx_base(start_date=since)
+    salary_total = _salary_total_expr()
 
     # Cast created_at to DATE in the DB's UTC representation
     date_col = cast(Transaction.created_at, DATE).label("day")
@@ -112,6 +118,9 @@ async def get_daily_trend(
             func.sum(
                 case((Transaction.type == "expense", Transaction.amount), else_=0)
             ).label("expense"),
+            func.sum(
+                case((Transaction.type == "salary", salary_total), else_=0)
+            ).label("salary"),
         )
         .where(where)
         .group_by(date_col)
@@ -120,15 +129,27 @@ async def get_daily_trend(
 
     rows = (await session.execute(stmt)).all()
     data = [
-        DailyTrendItem(
-            date=str(row.day),
-            income=Decimal(str(row.income or 0)),
-            expense=Decimal(str(row.expense or 0)),
-            net=Decimal(str(row.income or 0)) - Decimal(str(row.expense or 0)),
+        (
+            Decimal(str(row.income or 0)),
+            Decimal(str(row.expense or 0)),
+            Decimal(str(row.salary or 0)),
+            row.day,
         )
         for row in rows
     ]
-    return DailyTrendResponse(data=data, period_days=days)
+    return DailyTrendResponse(
+        data=[
+            DailyTrendItem(
+                date=str(day),
+                income=income,
+                expense=expense,
+                salary=salary,
+                net=income - expense - salary,
+            )
+            for income, expense, salary, day in data
+        ],
+        period_days=days,
+    )
 
 
 # ── Monthly trend ──────────────────────────────────────────────────────────────
@@ -140,6 +161,7 @@ async def get_monthly_trend(
     """Return per-month income/expense/salary totals for the last `months` months."""
     since = datetime.now(timezone.utc) - timedelta(days=months * 31)
     where = _active_tx_base(start_date=since)
+    salary_total = _salary_total_expr()
 
     # Format as YYYY-MM string
     month_col = func.to_char(Transaction.created_at, "YYYY-MM").label("month")
@@ -154,7 +176,7 @@ async def get_monthly_trend(
                 case((Transaction.type == "expense", Transaction.amount), else_=0)
             ).label("expense"),
             func.sum(
-                case((Transaction.type == "salary", Transaction.amount), else_=0)
+                case((Transaction.type == "salary", salary_total), else_=0)
             ).label("salary"),
         )
         .where(where)
@@ -169,7 +191,11 @@ async def get_monthly_trend(
             income=Decimal(str(row.income or 0)),
             expense=Decimal(str(row.expense or 0)),
             salary=Decimal(str(row.salary or 0)),
-            net=Decimal(str(row.income or 0)) - Decimal(str(row.expense or 0)),
+            net=(
+                Decimal(str(row.income or 0))
+                - Decimal(str(row.expense or 0))
+                - Decimal(str(row.salary or 0))
+            ),
         )
         for row in rows
     ]

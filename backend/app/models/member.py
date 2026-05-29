@@ -11,6 +11,7 @@ from sqlalchemy.types import TIMESTAMP
 from app.database import Base
 
 if TYPE_CHECKING:
+    from app.models.salary_settlement import SalarySettlement
     from app.models.transaction import Transaction
 
 
@@ -39,6 +40,9 @@ class Member(Base):
     # ── Relationships ─────────────────────────────────────────
     transactions: Mapped[List["Transaction"]] = relationship(
         "Transaction", back_populates="member", lazy="select"
+    )
+    salary_settlements: Mapped[List["SalarySettlement"]] = relationship(
+        "SalarySettlement", back_populates="member", lazy="select"
     )
 
     def __repr__(self) -> str:

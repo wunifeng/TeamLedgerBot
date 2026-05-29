@@ -1,18 +1,26 @@
 import { useEffect, useState } from 'react'
 import { Modal } from '@/components/UI/Modal'
 import { transactionsApi, membersApi, categoriesApi } from '@/services/api'
-import type { MemberResponse, CategoryResponse } from '@/types/api'
+import type { MemberResponse, CategoryResponse, TransactionWriteResponse } from '@/types/api'
 import { useApp } from '@/context/AppContext'
 
 interface Props {
   isOpen: boolean
   onClose: () => void
-  onSuccess: () => void
+  onSuccess: (result?: TransactionWriteResponse) => void
+  initialTab?: TxTab
+  initialMemberId?: string
 }
 
 type TxTab = 'income' | 'expense' | 'salary'
 
-export function AddTransactionModal({ isOpen, onClose, onSuccess }: Props) {
+export function AddTransactionModal({
+  isOpen,
+  onClose,
+  onSuccess,
+  initialTab = 'income',
+  initialMemberId,
+}: Props) {
   const { showToast } = useApp()
   const [tab, setTab] = useState<TxTab>('income')
   const [members, setMembers] = useState<MemberResponse[]>([])
@@ -30,16 +38,39 @@ export function AddTransactionModal({ isOpen, onClose, onSuccess }: Props) {
 
   useEffect(() => {
     if (!isOpen) return
+    setTab(initialTab)
+    setForm({
+      amount: '',
+      salary_amount: '',
+      bonus: '',
+      member_id: initialMemberId ?? '',
+      category_id: '',
+      remark: '',
+    })
     Promise.all([membersApi.list(), categoriesApi.list()]).then(([m, c]) => {
       setMembers(m)
       setCategories(c)
-      if (m.length) setForm((f) => ({ ...f, member_id: m[0].id }))
+      if (m.length) {
+        const selectedMember = initialMemberId && m.some((item) => item.id === initialMemberId)
+          ? initialMemberId
+          : m[0].id
+        setForm((f) => ({ ...f, member_id: selectedMember }))
+      }
     })
-  }, [isOpen])
+  }, [isOpen, initialTab, initialMemberId])
 
   const filteredCategories = categories.filter(
-    (c) => c.type === (tab === 'salary' ? 'expense' : tab)
+    (c) => c.type === tab
   )
+
+  const showAlerts = (alerts: string[]) => {
+    const labels: Record<string, string> = {
+      high_amount: '金额超过预警阈值',
+      duplicate: '疑似重复提交',
+      high_frequency: '提交频率异常',
+    }
+    alerts.forEach((alert) => showToast(labels[alert] ?? `触发风险提示：${alert}`, 'info'))
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -47,29 +78,31 @@ export function AddTransactionModal({ isOpen, onClose, onSuccess }: Props) {
 
     setLoading(true)
     try {
+      let result: TransactionWriteResponse
       if (tab === 'income') {
-        await transactionsApi.createIncome({
+        result = await transactionsApi.createIncome({
           amount: parseFloat(form.amount),
           member_id: form.member_id,
           category_id: form.category_id || undefined,
           remark: form.remark || undefined,
         })
       } else if (tab === 'expense') {
-        await transactionsApi.createExpense({
+        result = await transactionsApi.createExpense({
           amount: parseFloat(form.amount),
           member_id: form.member_id,
           category_id: form.category_id || undefined,
           remark: form.remark || undefined,
         })
       } else {
-        await transactionsApi.createSalary({
+        result = await transactionsApi.createSalary({
           salary_amount: parseFloat(form.salary_amount),
           bonus: form.bonus ? parseFloat(form.bonus) : undefined,
           member_id: form.member_id,
           remark: form.remark || undefined,
         })
       }
-      onSuccess()
+      showAlerts(result.alerts)
+      onSuccess(result)
     } catch (err: any) {
       showToast(err.message ?? '提交失败', 'error')
     } finally {
@@ -95,9 +128,9 @@ export function AddTransactionModal({ isOpen, onClose, onSuccess }: Props) {
     <Modal isOpen={isOpen} onClose={onClose} title="新增交易记录">
       {/* Type tabs */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
-        <button style={tabStyle(tab === 'income', 'var(--color-income)')} onClick={() => setTab('income')}>💰 收入</button>
-        <button style={tabStyle(tab === 'expense', 'var(--color-expense)')} onClick={() => setTab('expense')}>💸 支出</button>
-        <button style={tabStyle(tab === 'salary', 'var(--color-salary)')} onClick={() => setTab('salary')}>💵 薪资</button>
+        <button type="button" style={tabStyle(tab === 'income', 'var(--color-income)')} onClick={() => setTab('income')}>💰 收入</button>
+        <button type="button" style={tabStyle(tab === 'expense', 'var(--color-expense)')} onClick={() => setTab('expense')}>💸 支出</button>
+        <button type="button" style={tabStyle(tab === 'salary', 'var(--color-salary)')} onClick={() => setTab('salary')}>💵 薪资</button>
       </div>
 
       <form onSubmit={handleSubmit}>
@@ -161,20 +194,21 @@ export function AddTransactionModal({ isOpen, onClose, onSuccess }: Props) {
           </div>
         )}
 
-        {/* Category */}
-        <div className="form-group">
-          <label className="form-label">分类（可选）</label>
-          <select
-            className="form-input"
-            value={form.category_id}
-            onChange={(e) => setForm((f) => ({ ...f, category_id: e.target.value }))}
-          >
-            <option value="">-- 不选分类 --</option>
-            {filteredCategories.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-        </div>
+        {tab !== 'salary' && (
+          <div className="form-group">
+            <label className="form-label">分类（可选）</label>
+            <select
+              className="form-input"
+              value={form.category_id}
+              onChange={(e) => setForm((f) => ({ ...f, category_id: e.target.value }))}
+            >
+              <option value="">-- 不选分类 --</option>
+              {filteredCategories.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Remark */}
         <div className="form-group">

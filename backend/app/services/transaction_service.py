@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.enums import TransactionType
+from app.models.salary_settlement import SalarySettlement
 from app.models.transaction import Transaction
 from app.schemas.transaction import (
     ExpenseCreate, IncomeCreate, SalaryCreate,
@@ -31,6 +32,7 @@ def _to_response(tx: Transaction) -> TransactionResponse:
         category_name=tx.category.name if tx.category else None,
         member_id=tx.member_id,
         member_name=tx.member.name if tx.member else "",
+        salary_settlement_id=tx.salary_settlement_id,
         remark=tx.remark,
         bonus=tx.bonus,
         created_at=tx.created_at,
@@ -92,16 +94,20 @@ async def create_expense(
 
 
 async def create_salary(
-    session: AsyncSession, data: SalaryCreate
+    session: AsyncSession,
+    data: SalaryCreate,
+    salary_settlement_id: Optional[uuid.UUID] = None,
 ) -> tuple[TransactionResponse, list[str]]:
+    total_amount = data.salary_amount + (data.bonus or Decimal("0"))
     alerts = await validation_service.run_all_checks(
-        session, data.member_id, data.salary_amount, None, TransactionType.salary
+        session, data.member_id, total_amount, None, TransactionType.salary
     )
     tx = Transaction(
         type=TransactionType.salary.value,
         amount=data.salary_amount,
         category_id=None,
         member_id=data.member_id,
+        salary_settlement_id=salary_settlement_id,
         bonus=data.bonus,
         remark=data.remark,
         **( {"created_at": data.timestamp} if data.timestamp else {}),
@@ -130,6 +136,11 @@ async def delete_transaction(
     result = await session.execute(stmt)
     tx = result.scalar_one()   # raises NoResultFound if missing
     tx.is_deleted = True
+    if tx.type == TransactionType.salary.value and tx.salary_settlement_id:
+        settlement = await session.get(SalarySettlement, tx.salary_settlement_id)
+        if settlement:
+            total_paid = tx.amount + (tx.bonus or Decimal("0"))
+            settlement.paid_amount = max(Decimal("0"), settlement.paid_amount - total_paid)
     await session.flush()
     return _to_response(tx)
 

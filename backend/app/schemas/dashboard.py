@@ -9,7 +9,7 @@ class SummaryResponse(BaseModel):
     total_income: Decimal = Field(default=Decimal("0"))
     total_expense: Decimal = Field(default=Decimal("0"))
     total_salary: Decimal = Field(default=Decimal("0"))
-    net_profit: Decimal = Field(default=Decimal("0"))   # income - expense
+    net_profit: Decimal = Field(default=Decimal("0"))   # income - expense - salary
     transaction_count: int = 0
     income_count: int = 0
     expense_count: int = 0
@@ -20,6 +20,7 @@ class DailyTrendItem(BaseModel):
     date: str          # YYYY-MM-DD
     income: Decimal = Decimal("0")
     expense: Decimal = Decimal("0")
+    salary: Decimal = Decimal("0")
     net: Decimal = Decimal("0")
 
 

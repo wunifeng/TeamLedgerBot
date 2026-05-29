@@ -15,6 +15,7 @@ from app.enums import TransactionType
 if TYPE_CHECKING:
     from app.models.category import Category
     from app.models.member import Member
+    from app.models.salary_settlement import SalarySettlement
 
 
 class Transaction(Base):
@@ -45,6 +46,12 @@ class Transaction(Base):
         nullable=False,
         index=True,
     )
+    salary_settlement_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("salary_settlements.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     remark: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     # Only used for salary type
     bonus: Mapped[Optional[Decimal]] = mapped_column(
@@ -73,6 +80,9 @@ class Transaction(Base):
     )
     category: Mapped[Optional["Category"]] = relationship(
         "Category", back_populates="transactions", lazy="joined"
+    )
+    salary_settlement: Mapped[Optional["SalarySettlement"]] = relationship(
+        "SalarySettlement", back_populates="transactions", lazy="joined"
     )
 
     def __repr__(self) -> str:
