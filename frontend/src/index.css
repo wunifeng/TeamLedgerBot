@@ -50,7 +50,7 @@
 
   /* Sidebar */
   --sidebar-width: 240px;
-  --bottom-nav-height: 64px;
+  --bottom-nav-height: 68px;
 
   /* Transitions */
   --transition-base: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -307,13 +307,25 @@ select.form-input option {
 
 /* ── Bottom nav layout (mobile) ────────────────────────────── */
 @media (max-width: 768px) {
-  .layout-sidebar { display: none; }
+  /* 双保险隐藏侧边栏，防止遮盖内容 */
+  .layout-sidebar {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
   .layout-main {
-    margin-left: 0;
-    padding-bottom: var(--bottom-nav-height);
+    margin-left: 0 !important;
+    /* 底部留出 bottom-nav 高度 + iOS 安全区域 */
+    padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
   }
   .layout-content {
     padding: 16px;
+    padding-bottom: 0;
+  }
+  /* 底部导航栏适配 iOS 安全区域 */
+  .bottom-nav {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
   }
 }
 @media (min-width: 769px) {

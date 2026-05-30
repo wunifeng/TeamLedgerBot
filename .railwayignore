@@ -1,0 +1,13 @@
+frontend/
+.Codex/
+.codex-temp/
+.spec-workflow/
+docker-compose.yml
+run.ps1
+spec.md
+railway_deployment_skills.md
+backend/.venv/
+backend/.venv312/
+backend/.env
+backend/uploads/
+backend/tests/
