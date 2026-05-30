@@ -3,10 +3,13 @@ __pycache__/
 *.py[cod]
 *$py.class
 .venv/
+.venv*/
 venv/
 ENV/
 env/
 .env
+backend/uploads/
+.codex-temp/
 
 # Databases
 *.db
@@ -18,3 +21,7 @@ env/
 .project
 .pydevproject
 .settings/
+
+# Workflows and AI Tools
+.Codex/
+.spec-workflow/

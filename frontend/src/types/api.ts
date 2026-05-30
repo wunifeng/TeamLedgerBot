@@ -1,91 +1,5 @@
-// ── API Types matching backend Pydantic schemas exactly ─────────────────────
-
-export type TransactionType = 'income' | 'expense' | 'salary'
-export type CategoryType = 'income' | 'expense'
 export type SalarySettlementStatus = 'unpaid' | 'partial' | 'paid'
 
-// Dashboard
-export interface SummaryResponse {
-  total_income: number
-  total_expense: number
-  total_salary: number
-  net_profit: number
-  transaction_count: number
-  income_count: number
-  expense_count: number
-  salary_count: number
-}
-
-export interface DailyTrendItem {
-  date: string // YYYY-MM-DD
-  income: number
-  expense: number
-  salary: number
-  net: number
-}
-
-export interface DailyTrendResponse {
-  data: DailyTrendItem[]
-  period_days: number
-}
-
-export interface MonthlyTrendItem {
-  month: string // YYYY-MM
-  income: number
-  expense: number
-  salary: number
-  net: number
-}
-
-export interface MonthlyTrendResponse {
-  data: MonthlyTrendItem[]
-  period_months: number
-}
-
-export interface CategoryBreakdownItem {
-  category_id: string
-  category_name: string
-  type: string
-  total: number
-  count: number
-  percentage: number
-}
-
-export interface CategoryBreakdownResponse {
-  income: CategoryBreakdownItem[]
-  expense: CategoryBreakdownItem[]
-}
-
-// Transactions
-export interface TransactionResponse {
-  id: string
-  type: TransactionType
-  amount: number
-  category_id: string | null
-  category_name: string | null
-  member_id: string
-  member_name: string
-  salary_settlement_id: string | null
-  remark: string | null
-  bonus: number | null
-  created_at: string
-  updated_at: string
-}
-
-export interface TransactionListResponse {
-  items: TransactionResponse[]
-  total: number
-  page: number
-  limit: number
-  pages: number
-}
-
-export interface TransactionWriteResponse {
-  transaction: TransactionResponse
-  alerts: string[]
-}
-
-// Members
 export interface MemberResponse {
   id: string
   name: string
@@ -94,7 +8,82 @@ export interface MemberResponse {
   created_at: string
 }
 
-// Salary settlements
+export interface MemberCreate {
+  name: string
+  role?: string
+}
+
+export interface CategoryResponse {
+  id: string
+  name: string
+  type: 'income' | 'expense'
+  description: string | null
+  is_active: boolean
+  created_at: string
+}
+
+export interface VenueResponse {
+  id: string
+  name: string
+  rebate_rate: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface DailyFlowCreate {
+  business_date: string
+  member_id: string
+  venue_id: string
+  game: string
+  card_number: string
+  principal: number
+  chip_code: number
+  loss_rebate: number
+  profit_loss: number
+  remark?: string
+}
+
+export interface DailyFlowResponse extends DailyFlowCreate {
+  id: string
+  member_name: string
+  venue_name: string
+  rebate_rate: number
+  salary_amount: number
+  salary_rule_description: string
+  created_at: string
+  updated_at: string
+}
+
+export interface DailyFlowListResponse {
+  items: DailyFlowResponse[]
+  total: number
+  page: number
+  limit: number
+  pages: number
+}
+
+export interface MemberExpenseResponse {
+  id: string
+  business_date: string
+  member_id: string
+  member_name: string
+  category_id: string | null
+  category_name: string | null
+  amount: number
+  remark: string | null
+  receipt_url: string | null
+  reimbursed: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface MemberExpenseListResponse {
+  items: MemberExpenseResponse[]
+  total_amount: number
+  total_unreimbursed: number
+}
+
 export interface SalarySettlementResponse {
   id: string
   member_id: string
@@ -119,67 +108,42 @@ export interface SalarySettlementListResponse {
 
 export interface SalaryPaymentResponse {
   settlement: SalarySettlementResponse
-  transaction: TransactionResponse
-  alerts: string[]
+  payment: {
+    id: string
+    settlement_id: string
+    amount: number
+    remark: string | null
+    paid_at: string
+  }
 }
 
-// Categories
-export interface CategoryResponse {
-  id: string
-  name: string
-  type: CategoryType
-  description: string | null
-  is_active: boolean
-  created_at: string
+export interface SummaryResponse {
+  total_profit_loss: number
+  total_expense: number
+  total_salary: number
+  net_result: number
+  flow_count: number
+  expense_count: number
+  unreimbursed_expense: number
 }
 
-// Write payloads
-export interface IncomeCreate {
-  amount: number
-  category_id?: string
-  member_id: string
-  remark?: string
-  timestamp?: string
+export interface DailyTrendItem {
+  date: string
+  profit_loss: number
+  expense: number
+  salary: number
+  net: number
 }
 
-export interface ExpenseCreate {
-  amount: number
-  category_id?: string
-  member_id: string
-  remark?: string
-  timestamp?: string
+export interface DailyTrendResponse {
+  data: DailyTrendItem[]
+  period_days: number
 }
 
-export interface SalaryCreate {
-  member_id: string
-  salary_amount: number
-  bonus?: number
-  remark?: string
-  timestamp?: string
-}
-
-export interface SalarySettlementCreate {
-  member_id: string
-  period_start: string
-  period_end: string
-  payable_amount: number
-  remark?: string
-}
-
-export interface SalaryPaymentCreate {
-  amount: number
-  bonus?: number
-  remark?: string
-  timestamp?: string
-}
-
-export interface MemberCreate {
-  name: string
-  role?: string
-}
-
-export interface CategoryCreate {
-  name: string
-  type: CategoryType
-  description?: string
+export interface VenueBreakdownResponse {
+  items: Array<{
+    venue_name: string
+    profit_loss: number
+    flow_count: number
+  }>
 }

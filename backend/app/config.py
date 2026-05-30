@@ -1,4 +1,5 @@
 """Application configuration using Pydantic BaseSettings."""
+from pathlib import Path
 from typing import List
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -24,6 +25,10 @@ class Settings(BaseSettings):
     # Store as plain str and expose as list via property to avoid parse errors.
     CORS_ORIGINS: str = "http://localhost:3000"
     TIMEZONE: str = "Asia/Bangkok"
+    SALARY_CONFIG_PATH: str = str(
+        Path(__file__).resolve().parent / "data" / "salary_config.json"
+    )
+    UPLOAD_DIR: str = str(Path(__file__).resolve().parent.parent / "uploads")
 
     # ── Risk Alert Thresholds ─────────────────────────────────
     RISK_HIGH_AMOUNT_THRESHOLD: float = 10_000.0

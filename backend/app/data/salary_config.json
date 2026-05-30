@@ -1,0 +1,323 @@
+{
+  "0.2": {
+    "BJ": [
+      {
+        "enabled": true,
+        "profit_min": 200,
+        "profit_max": 999,
+        "salary": 20,
+        "description": "BJ 赢 200~999"
+      },
+      {
+        "enabled": true,
+        "profit_min": 1000,
+        "profit_max": 1999,
+        "salary": 30,
+        "description": "BJ 赢 1000~1999"
+      },
+      {
+        "enabled": true,
+        "profit_min": 2000,
+        "profit_max": 2599,
+        "salary": 40,
+        "description": "BJ 赢 2000~2599"
+      },
+      {
+        "enabled": true,
+        "profit_min": 2600,
+        "profit_max": null,
+        "salary": 50,
+        "description": "BJ 赢 2600 以上"
+      },
+      {
+        "enabled": true,
+        "profit_min": -1999,
+        "profit_max": -800,
+        "salary": 10,
+        "description": "BJ 输 -1999~-100"
+      },
+      {
+        "enabled": true,
+        "profit_min": null,
+        "profit_max": -2000,
+        "salary": 20,
+        "description": "BJ 输 -2000 以上"
+      }
+    ],
+    "UTH": [
+      {
+        "enabled": true,
+        "profit_min": 200,
+        "profit_max": 1499,
+        "salary": 20,
+        "description": "UTH 赢 200~1499"
+      },
+      {
+        "enabled": true,
+        "profit_min": 1500,
+        "profit_max": null,
+        "salary": 30,
+        "description": "UTH 赢 1500 以上"
+      },
+      {
+        "enabled": true,
+        "profit_min": -1499,
+        "profit_max": -200,
+        "salary": 10,
+        "description": "UTH 输 -1499~-200"
+      },
+      {
+        "enabled": true,
+        "profit_min": null,
+        "profit_max": -1500,
+        "salary": 15,
+        "description": "UTH 输 -1500 以上"
+      }
+    ],
+    "俄罗斯": [
+      {
+        "enabled": true,
+        "profit_min": 200,
+        "profit_max": 999,
+        "salary": 30,
+        "description": "俄罗斯 赢 200~999"
+      },
+      {
+        "enabled": true,
+        "profit_min": 1000,
+        "profit_max": 1999,
+        "salary": 40,
+        "description": "俄罗斯 赢 1000~1999"
+      },
+      {
+        "enabled": true,
+        "profit_min": 2000,
+        "profit_max": 2599,
+        "salary": 50,
+        "description": "俄罗斯 赢 2000~2599"
+      },
+      {
+        "enabled": true,
+        "profit_min": 2600,
+        "profit_max": null,
+        "salary": 60,
+        "description": "俄罗斯 赢 2600 以上"
+      },
+      {
+        "enabled": true,
+        "profit_min": -1999,
+        "profit_max": -100,
+        "salary": 15,
+        "description": "俄罗斯 输 -1999~-100"
+      },
+      {
+        "enabled": true,
+        "profit_min": null,
+        "profit_max": -2000,
+        "salary": 30,
+        "description": "俄罗斯 输 -2000 以上"
+      }
+    ],
+    "百家乐": [
+      {
+        "enabled": true,
+        "profit_min": 200,
+        "profit_max": 999,
+        "salary": 10,
+        "description": "百家乐 赢 200~999"
+      },
+      {
+        "enabled": true,
+        "profit_min": 1000,
+        "profit_max": 1999,
+        "salary": 20,
+        "description": "百家乐 赢 1000~1999"
+      },
+      {
+        "enabled": true,
+        "profit_min": 2000,
+        "profit_max": 2999,
+        "salary": 30,
+        "description": "百家乐 赢 2000~2999"
+      },
+      {
+        "enabled": true,
+        "profit_min": 3000,
+        "profit_max": null,
+        "salary": 40,
+        "description": "百家乐 赢 3000 以上"
+      },
+      {
+        "enabled": true,
+        "profit_min": -999,
+        "profit_max": -200,
+        "salary": 5,
+        "description": "百家乐 输 -999~-200"
+      },
+      {
+        "enabled": true,
+        "profit_min": -1999,
+        "profit_max": -1000,
+        "salary": 10,
+        "description": "百家乐 输 -1999~-1000"
+      },
+      {
+        "enabled": true,
+        "profit_min": null,
+        "profit_max": -2000,
+        "salary": 20,
+        "description": "百家乐 输 -2000 以上"
+      }
+    ]
+  },
+  "0.1": {
+    "BJ": [
+      {
+        "enabled": true,
+        "profit_min": 200,
+        "profit_max": 999,
+        "salary": 10,
+        "description": "BJ 赢 200~999（rebate 10%）"
+      },
+      {
+        "enabled": true,
+        "profit_min": 1000,
+        "profit_max": 1999,
+        "salary": 20,
+        "description": "BJ 赢 1000~1999（rebate 10%）"
+      },
+      {
+        "enabled": true,
+        "profit_min": 2000,
+        "profit_max": null,
+        "salary": 40,
+        "description": "BJ 赢 2000 以上（rebate 10%）"
+      },
+      {
+        "enabled": true,
+        "profit_min": null,
+        "profit_max": -200,
+        "salary": 10,
+        "description": "BJ 输 -200 以上（rebate 10%）"
+      }
+    ],
+    "UTH": [
+      {
+        "enabled": true,
+        "profit_min": 200,
+        "profit_max": 599,
+        "salary": 10,
+        "description": "UTH 赢 200~599（rebate 10%）"
+      },
+      {
+        "enabled": true,
+        "profit_min": 600,
+        "profit_max": null,
+        "salary": 20,
+        "description": "UTH 赢 600 以上（rebate 10%）"
+      },
+      {
+        "enabled": true,
+        "profit_min": -599,
+        "profit_max": -10,
+        "salary": 0,
+        "description": "UTH 输 -599~-10（rebate 10%）"
+      },
+      {
+        "enabled": true,
+        "profit_min": null,
+        "profit_max": -600,
+        "salary": 10,
+        "description": "UTH 输 -600 以上（rebate 10%）"
+      }
+    ],
+    "俄罗斯": [
+      {
+        "enabled": true,
+        "profit_min": 200,
+        "profit_max": 999,
+        "salary": 20,
+        "description": "俄罗斯 赢 200~999（rebate 10%）"
+      },
+      {
+        "enabled": true,
+        "profit_min": 1000,
+        "profit_max": 1999,
+        "salary": 30,
+        "description": "俄罗斯 赢 1000~1999（rebate 10%）"
+      },
+      {
+        "enabled": true,
+        "profit_min": 2000,
+        "profit_max": 2599,
+        "salary": 40,
+        "description": "俄罗斯 赢 2000~2599（rebate 10%）"
+      },
+      {
+        "enabled": true,
+        "profit_min": 2600,
+        "profit_max": null,
+        "salary": 50,
+        "description": "俄罗斯 赢 2600 以上（rebate 10%）"
+      },
+      {
+        "enabled": true,
+        "profit_min": -1999,
+        "profit_max": -100,
+        "salary": 10,
+        "description": "俄罗斯 输 -1999~-100（rebate 10%）"
+      },
+      {
+        "enabled": true,
+        "profit_min": null,
+        "profit_max": -2000,
+        "salary": 20,
+        "description": "俄罗斯 输 -2000 以上（rebate 10%）"
+      }
+    ],
+    "百家乐": [
+      {
+        "enabled": true,
+        "profit_min": 200,
+        "profit_max": 999,
+        "salary": 0,
+        "description": "百家乐 赢 200~999（rebate 10%）"
+      },
+      {
+        "enabled": true,
+        "profit_min": 1000,
+        "profit_max": 1999,
+        "salary": 10,
+        "description": "百家乐 赢 1000~1999（rebate 10%）"
+      },
+      {
+        "enabled": true,
+        "profit_min": 2000,
+        "profit_max": 2999,
+        "salary": 20,
+        "description": "百家乐 赢 2000~2999（rebate 10%）"
+      },
+      {
+        "enabled": true,
+        "profit_min": 3000,
+        "profit_max": null,
+        "salary": 30,
+        "description": "百家乐 赢 3000 以上（rebate 10%）"
+      },
+      {
+        "enabled": true,
+        "profit_min": -1999,
+        "profit_max": -200,
+        "salary": 10,
+        "description": "百家乐 输 -1999~-200（rebate 10%）"
+      },
+      {
+        "enabled": true,
+        "profit_min": null,
+        "profit_max": -2000,
+        "salary": 20,
+        "description": "百家乐 输 -2000 以上（rebate 10%）"
+      }
+    ]
+  }
+}

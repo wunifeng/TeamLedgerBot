@@ -54,20 +54,22 @@ def do_run_migrations(connection: Connection) -> None:
 
 async def run_async_migrations() -> None:
     """Create async engine and run migrations."""
-    import ssl as _ssl
-    ssl_context = _ssl.create_default_context()
-    ssl_context.check_hostname = False
-    ssl_context.verify_mode = _ssl.CERT_NONE
-
     # Strip SSL params from URL — pass via connect_args
     db_url = settings.DATABASE_URL.replace("?ssl=require", "").replace(
         "?sslmode=require", ""
     ).replace("&ssl=require", "").replace("&sslmode=require", "")
+    connect_args = {}
+    if "ssl=require" in settings.DATABASE_URL or "sslmode=require" in settings.DATABASE_URL:
+        import ssl as _ssl
+        ssl_context = _ssl.create_default_context()
+        ssl_context.check_hostname = False
+        ssl_context.verify_mode = _ssl.CERT_NONE
+        connect_args["ssl"] = ssl_context
 
     connectable = create_async_engine(
         db_url,
         poolclass=pool.NullPool,
-        connect_args={"ssl": ssl_context},
+        connect_args=connect_args,
     )
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)

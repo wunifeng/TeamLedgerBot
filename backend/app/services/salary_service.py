@@ -1,30 +1,25 @@
-"""薪资账期结算服务。"""
+"""工资月结与实际发放服务。"""
 import uuid
 from datetime import date
 from decimal import Decimal
 from typing import Optional
 
-from sqlalchemy import and_, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.models.daily_flow_report import DailyFlowReport, SalaryAccrual
 from app.models.member import Member
-from app.models.salary_settlement import SalarySettlement
+from app.models.salary_settlement import SalaryPayment, SalarySettlement
 from app.schemas.salary import (
     SalaryPaymentCreate,
+    SalaryPaymentItem,
     SalaryPaymentResponse,
-    SalarySettlementCreate,
     SalarySettlementListResponse,
     SalarySettlementResponse,
 )
-from app.schemas.transaction import SalaryCreate
-from app.services import transaction_service
 
 _ZERO = Decimal("0")
-
-
-def _paid_total(amount: Decimal, bonus: Optional[Decimal]) -> Decimal:
-    return amount + (bonus or _ZERO)
 
 
 def _status(payable: Decimal, paid: Decimal) -> str:
@@ -35,62 +30,107 @@ def _status(payable: Decimal, paid: Decimal) -> str:
     return "paid"
 
 
-def _to_response(settlement: SalarySettlement) -> SalarySettlementResponse:
-    unpaid = max(_ZERO, settlement.payable_amount - settlement.paid_amount)
+async def _payable(
+    session: AsyncSession,
+    member_id: uuid.UUID,
+    period_start: date,
+    period_end: date,
+) -> Decimal:
+    amount = await session.scalar(
+        select(func.coalesce(func.sum(SalaryAccrual.salary_amount), 0))
+        .join(DailyFlowReport, SalaryAccrual.daily_flow_report_id == DailyFlowReport.id)
+        .where(
+            DailyFlowReport.member_id == member_id,
+            DailyFlowReport.business_date >= period_start,
+            DailyFlowReport.business_date <= period_end,
+            DailyFlowReport.is_deleted.is_(False),
+        )
+    )
+    return Decimal(str(amount or 0))
+
+
+async def _paid(session: AsyncSession, settlement_id: uuid.UUID) -> Decimal:
+    amount = await session.scalar(
+        select(func.coalesce(func.sum(SalaryPayment.amount), 0)).where(
+            SalaryPayment.settlement_id == settlement_id
+        )
+    )
+    return Decimal(str(amount or 0))
+
+
+async def _get_or_create_settlement(
+    session: AsyncSession,
+    member_id: uuid.UUID,
+    period_start: date,
+    period_end: date,
+) -> SalarySettlement:
+    settlement = await session.scalar(
+        select(SalarySettlement)
+        .options(selectinload(SalarySettlement.member))
+        .where(
+            SalarySettlement.member_id == member_id,
+            SalarySettlement.period_start == period_start,
+            SalarySettlement.period_end == period_end,
+        )
+    )
+    if settlement:
+        return settlement
+    settlement = SalarySettlement(
+        member_id=member_id,
+        period_start=period_start,
+        period_end=period_end,
+    )
+    session.add(settlement)
+    await session.flush()
+    return (
+        await session.execute(
+            select(SalarySettlement)
+            .options(selectinload(SalarySettlement.member))
+            .where(SalarySettlement.id == settlement.id)
+        )
+    ).scalar_one()
+
+
+async def _to_response(
+    session: AsyncSession,
+    settlement: SalarySettlement,
+) -> SalarySettlementResponse:
+    payable = await _payable(session, settlement.member_id, settlement.period_start, settlement.period_end)
+    paid = await _paid(session, settlement.id)
+    unpaid = max(_ZERO, payable - paid)
     return SalarySettlementResponse(
         id=settlement.id,
         member_id=settlement.member_id,
-        member_name=settlement.member.name if settlement.member else "",
+        member_name=settlement.member.name,
         period_start=settlement.period_start,
         period_end=settlement.period_end,
-        payable_amount=settlement.payable_amount,
-        paid_amount=settlement.paid_amount,
+        payable_amount=payable,
+        paid_amount=paid,
         unpaid_amount=unpaid,
-        status=_status(settlement.payable_amount, settlement.paid_amount),
+        status=_status(payable, paid),
         remark=settlement.remark,
         created_at=settlement.created_at,
         updated_at=settlement.updated_at,
     )
 
 
-async def _load_settlement(
-    session: AsyncSession,
-    settlement_id: uuid.UUID,
-) -> SalarySettlement:
-    stmt = (
-        select(SalarySettlement)
-        .options(selectinload(SalarySettlement.member))
-        .where(SalarySettlement.id == settlement_id)
-    )
-    result = await session.execute(stmt)
-    return result.scalar_one()
-
-
 async def list_settlements(
     session: AsyncSession,
-    period_start: Optional[date] = None,
-    period_end: Optional[date] = None,
+    period_start: date,
+    period_end: date,
     include_inactive: bool = True,
 ) -> SalarySettlementListResponse:
-    filters = []
-    if period_start:
-        filters.append(SalarySettlement.period_start == period_start)
-    if period_end:
-        filters.append(SalarySettlement.period_end == period_end)
+    """返回指定月度账期的成员工资汇总。"""
 
-    stmt = (
-        select(SalarySettlement)
-        .options(selectinload(SalarySettlement.member))
-        .join(Member, SalarySettlement.member_id == Member.id)
-        .order_by(Member.name)
-    )
-    if filters:
-        stmt = stmt.where(and_(*filters))
+    stmt = select(Member).order_by(Member.name)
     if not include_inactive:
         stmt = stmt.where(Member.is_active.is_(True))
-
-    rows = (await session.execute(stmt)).scalars().all()
-    items = [_to_response(row) for row in rows]
+    members = (await session.execute(stmt)).scalars().all()
+    settlements = [
+        await _get_or_create_settlement(session, member.id, period_start, period_end)
+        for member in members
+    ]
+    items = [await _to_response(session, settlement) for settlement in settlements]
     return SalarySettlementListResponse(
         items=items,
         total_payable=sum((item.payable_amount for item in items), _ZERO),
@@ -99,68 +139,39 @@ async def list_settlements(
     )
 
 
-async def create_or_update_settlement(
-    session: AsyncSession,
-    data: SalarySettlementCreate,
-) -> SalarySettlementResponse:
-    member = await session.get(Member, data.member_id)
-    if member is None:
-        raise LookupError(f"Member {data.member_id} not found.")
-
-    stmt = select(SalarySettlement).where(
-        SalarySettlement.member_id == data.member_id,
-        SalarySettlement.period_start == data.period_start,
-        SalarySettlement.period_end == data.period_end,
-    )
-    existing = (await session.execute(stmt)).scalar_one_or_none()
-    if existing:
-        if data.payable_amount < existing.paid_amount:
-            raise ValueError("payable_amount cannot be less than already paid amount.")
-        existing.payable_amount = data.payable_amount
-        existing.remark = data.remark
-        await session.flush()
-        return _to_response(await _load_settlement(session, existing.id))
-
-    settlement = SalarySettlement(
-        member_id=data.member_id,
-        period_start=data.period_start,
-        period_end=data.period_end,
-        payable_amount=data.payable_amount,
-        paid_amount=_ZERO,
-        remark=data.remark,
-    )
-    session.add(settlement)
-    await session.flush()
-    return _to_response(await _load_settlement(session, settlement.id))
-
-
 async def pay_settlement(
     session: AsyncSession,
     settlement_id: uuid.UUID,
     data: SalaryPaymentCreate,
 ) -> SalaryPaymentResponse:
-    settlement = await _load_settlement(session, settlement_id)
-    pay_total = _paid_total(data.amount, data.bonus)
-    unpaid = settlement.payable_amount - settlement.paid_amount
-    if pay_total > unpaid:
-        raise ValueError("payment amount cannot exceed unpaid amount.")
+    """登记实际工资发放，禁止超额支付。"""
 
-    tx, alerts = await transaction_service.create_salary(
-        session,
-        SalaryCreate(
-            member_id=settlement.member_id,
-            salary_amount=data.amount,
-            bonus=data.bonus,
-            remark=data.remark,
-            timestamp=data.timestamp,
-        ),
-        salary_settlement_id=settlement.id,
+    settlement = (
+        await session.execute(
+            select(SalarySettlement)
+            .options(selectinload(SalarySettlement.member))
+            .where(SalarySettlement.id == settlement_id)
+        )
+    ).scalar_one_or_none()
+    if settlement is None:
+        raise LookupError(f"工资账期 {settlement_id} 不存在。")
+    current = await _to_response(session, settlement)
+    if data.amount > current.unpaid_amount:
+        raise ValueError("发放金额不能超过未付工资。")
+    payment = SalaryPayment(
+        settlement_id=settlement.id,
+        amount=data.amount,
+        remark=data.remark,
     )
-    settlement.paid_amount += pay_total
+    session.add(payment)
     await session.flush()
-    refreshed = await _load_settlement(session, settlement.id)
     return SalaryPaymentResponse(
-        settlement=_to_response(refreshed),
-        transaction=tx,
-        alerts=alerts,
+        settlement=await _to_response(session, settlement),
+        payment=SalaryPaymentItem(
+            id=payment.id,
+            settlement_id=payment.settlement_id,
+            amount=payment.amount,
+            remark=payment.remark,
+            paid_at=payment.paid_at,
+        ),
     )

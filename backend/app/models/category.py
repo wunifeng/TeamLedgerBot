@@ -12,7 +12,7 @@ from app.database import Base
 from app.enums import CategoryType
 
 if TYPE_CHECKING:
-    from app.models.transaction import Transaction
+    from app.models.member_expense import MemberExpense
 
 
 class Category(Base):
@@ -44,8 +44,8 @@ class Category(Base):
     )
 
     # ── Relationships ─────────────────────────────────────────
-    transactions: Mapped[List["Transaction"]] = relationship(
-        "Transaction", back_populates="category", lazy="select"
+    expenses: Mapped[List["MemberExpense"]] = relationship(
+        "MemberExpense", back_populates="category", lazy="select"
     )
 
     def __repr__(self) -> str:

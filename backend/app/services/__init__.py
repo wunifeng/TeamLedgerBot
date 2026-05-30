@@ -1,4 +1,1 @@
-"""Services package."""
-from app.services import transaction_service, telegram_service, validation_service, reporting_service
-
-__all__ = ["transaction_service", "telegram_service", "validation_service", "reporting_service"]
+"""业务服务包。子模块由调用方按需导入，避免包级副作用。"""

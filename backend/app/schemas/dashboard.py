@@ -1,44 +1,26 @@
-"""Pydantic schemas for Dashboard API responses."""
+"""业务仪表盘 API schema。"""
 from decimal import Decimal
 from typing import List
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class SummaryResponse(BaseModel):
-    total_income: Decimal = Field(default=Decimal("0"))
-    total_expense: Decimal = Field(default=Decimal("0"))
-    total_salary: Decimal = Field(default=Decimal("0"))
-    net_profit: Decimal = Field(default=Decimal("0"))   # income - expense - salary
-    transaction_count: int = 0
-    income_count: int = 0
+    total_profit_loss: Decimal = Decimal("0")
+    total_expense: Decimal = Decimal("0")
+    total_salary: Decimal = Decimal("0")
+    net_result: Decimal = Decimal("0")
+    flow_count: int = 0
     expense_count: int = 0
-    salary_count: int = 0
+    unreimbursed_expense: Decimal = Decimal("0")
 
 
 class DailyTrendItem(BaseModel):
-    date: str          # YYYY-MM-DD
-    income: Decimal = Decimal("0")
+    date: str
+    profit_loss: Decimal = Decimal("0")
     expense: Decimal = Decimal("0")
     salary: Decimal = Decimal("0")
     net: Decimal = Decimal("0")
-
-
-class MonthlyTrendItem(BaseModel):
-    month: str         # YYYY-MM
-    income: Decimal = Decimal("0")
-    expense: Decimal = Decimal("0")
-    salary: Decimal = Decimal("0")
-    net: Decimal = Decimal("0")
-
-
-class CategoryBreakdownItem(BaseModel):
-    category_id: str
-    category_name: str
-    type: str
-    total: Decimal
-    count: int
-    percentage: float = 0.0
 
 
 class DailyTrendResponse(BaseModel):
@@ -46,11 +28,11 @@ class DailyTrendResponse(BaseModel):
     period_days: int = 30
 
 
-class MonthlyTrendResponse(BaseModel):
-    data: List[MonthlyTrendItem]
-    period_months: int = 12
+class VenueBreakdownItem(BaseModel):
+    venue_name: str
+    profit_loss: Decimal
+    flow_count: int
 
 
-class CategoryBreakdownResponse(BaseModel):
-    income: List[CategoryBreakdownItem]
-    expense: List[CategoryBreakdownItem]
+class VenueBreakdownResponse(BaseModel):
+    items: List[VenueBreakdownItem]

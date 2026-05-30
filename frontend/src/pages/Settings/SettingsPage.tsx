@@ -1,204 +1,66 @@
-import { useEffect, useState, useCallback } from 'react'
-import { motion } from 'framer-motion'
-import { Plus, Trash2, Tag } from 'lucide-react'
-import { categoriesApi } from '@/services/api'
-import type { CategoryResponse } from '@/types/api'
-import { useApp } from '@/context/AppContext'
+import { useCallback, useEffect, useState } from 'react'
+import { Pencil, Plus, Tag, Trash2 } from 'lucide-react'
 import { Modal } from '@/components/UI/Modal'
-
-const TYPE_COLORS = {
-  income: 'var(--color-income)',
-  expense: 'var(--color-expense)',
-}
+import { categoriesApi, venuesApi } from '@/services/api'
+import type { CategoryResponse, VenueResponse } from '@/types/api'
+import { useApp } from '@/context/AppContext'
 
 export default function SettingsPage() {
   const { showToast } = useApp()
+  const [venues, setVenues] = useState<VenueResponse[]>([])
   const [categories, setCategories] = useState<CategoryResponse[]>([])
-  const [loading, setLoading] = useState(true)
-  const [modalOpen, setModalOpen] = useState(false)
-  const [tabFilter, setTabFilter] = useState<'income' | 'expense' | ''>('')
+  const [rates, setRates] = useState<number[]>([])
+  const [venueModal, setVenueModal] = useState(false)
+  const [venueTarget, setVenueTarget] = useState<VenueResponse | null>(null)
+  const [venueName, setVenueName] = useState('')
+  const [rate, setRate] = useState('0.2')
+  const [categoryName, setCategoryName] = useState('')
 
-  // New category form
-  const [name, setName] = useState('')
-  const [type, setType] = useState<'income' | 'expense'>('expense')
-  const [desc, setDesc] = useState('')
-  const [saving, setSaving] = useState(false)
-
-  const loadCategories = useCallback(async () => {
-    setLoading(true)
+  const load = useCallback(async () => {
     try {
-      setCategories(await categoriesApi.list({ type: tabFilter || undefined }))
-    } catch (e: any) {
-      showToast(e.message, 'error')
-    } finally {
-      setLoading(false)
-    }
-  }, [tabFilter, showToast])
+      const [venueRows, categoryRows, rateRows] = await Promise.all([venuesApi.list(true), categoriesApi.listExpenses(), venuesApi.rebateRates()])
+      setVenues(venueRows); setCategories(categoryRows); setRates(rateRows)
+      if (rateRows.length && !rateRows.includes(Number(rate))) setRate(String(rateRows[0]))
+    } catch (error: any) { showToast(error.message, 'error') }
+  }, [rate, showToast])
+  useEffect(() => { load() }, [load])
 
-  useEffect(() => { loadCategories() }, [loadCategories])
-
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!name.trim()) return
-    setSaving(true)
-    try {
-      await categoriesApi.create({ name: name.trim(), type, description: desc.trim() || undefined })
-      showToast(`分类「${name}」已创建`, 'success')
-      setName(''); setDesc(''); setModalOpen(false)
-      loadCategories()
-    } catch (err: any) {
-      showToast(err.message, 'error')
-    } finally {
-      setSaving(false)
-    }
+  const openVenue = (venue?: VenueResponse) => {
+    setVenueTarget(venue ?? null); setVenueName(venue?.name ?? ''); setRate(String(venue?.rebate_rate ?? rates[0] ?? 0.2)); setVenueModal(true)
   }
-
-  const handleDelete = async (cat: CategoryResponse) => {
-    if (!confirm(`确定要停用分类「${cat.name}」吗？`)) return
+  const saveVenue = async (event: React.FormEvent) => {
+    event.preventDefault()
     try {
-      await categoriesApi.delete(cat.id)
-      showToast(`分类「${cat.name}」已停用`, 'success')
-      loadCategories()
-    } catch (e: any) {
-      showToast(e.message, 'error')
-    }
+      if (venueTarget) await venuesApi.update(venueTarget.id, { name: venueName, rebate_rate: Number(rate) })
+      else await venuesApi.create({ name: venueName, rebate_rate: Number(rate) })
+      setVenueModal(false); showToast('场子配置已保存', 'success'); load()
+    } catch (error: any) { showToast(error.message, 'error') }
   }
-
-  const income = categories.filter((c) => c.type === 'income')
-  const expense = categories.filter((c) => c.type === 'expense')
-
-  const CategorySection = ({ title, items, color }: { title: string; items: CategoryResponse[]; color: string }) => (
-    <div style={{ marginBottom: 24 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-        <Tag size={14} style={{ color }} />
-        <span style={{ fontSize: 13, fontWeight: 600, color }}>{title}</span>
-        <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 4 }}>({items.length})</span>
-      </div>
-      {items.length === 0 ? (
-        <p style={{ fontSize: 13, color: 'var(--text-muted)', paddingLeft: 22 }}>暂无分类</p>
-      ) : (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {items.map((cat, i) => (
-            <motion.div
-              key={cat.id}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: i * 0.04 }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '7px 12px',
-                background: `${color}12`,
-                border: `1px solid ${color}28`,
-                borderRadius: 10,
-                fontSize: 13,
-                color: 'var(--text-primary)',
-              }}
-            >
-              <span>{cat.name}</span>
-              {cat.description && (
-                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>· {cat.description}</span>
-              )}
-              <button
-                className="btn btn-danger btn-sm btn-icon"
-                style={{ padding: '2px', marginLeft: 2 }}
-                onClick={() => handleDelete(cat)}
-                title="停用分类"
-              >
-                <Trash2 size={11} />
-              </button>
-            </motion.div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
+  const toggleVenue = async (venue: VenueResponse) => {
+    try { await venuesApi.update(venue.id, { is_active: !venue.is_active }); load() } catch (error: any) { showToast(error.message, 'error') }
+  }
+  const addCategory = async (event: React.FormEvent) => {
+    event.preventDefault()
+    try { await categoriesApi.createExpense({ name: categoryName }); setCategoryName(''); load() } catch (error: any) { showToast(error.message, 'error') }
+  }
 
   return (
     <>
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-          <div>
-            <h1 className="page-title">分类设置</h1>
-            <p className="page-subtitle">管理收入与支出的分类标签</p>
-          </div>
-          <button className="btn btn-primary" onClick={() => setModalOpen(true)}>
-            <Plus size={16} />新增分类
-          </button>
-        </div>
-      </div>
-
-      <motion.div className="glass-card" initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ padding: '24px' }}>
-        {loading ? (
-          <div>
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="skeleton" style={{ height: 36, marginBottom: 8, borderRadius: 10 }} />
-            ))}
-          </div>
-        ) : (
-          <>
-            <CategorySection title="收入分类" items={income} color="var(--color-income)" />
-            <hr className="divider" />
-            <CategorySection title="支出分类" items={expense} color="var(--color-expense)" />
-          </>
-        )}
-      </motion.div>
-
-      {/* Create modal */}
-      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="新增分类">
-        <form onSubmit={handleCreate}>
-          <div className="form-group">
-            <label className="form-label">类型</label>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {(['income', 'expense'] as const).map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => setType(t)}
-                  style={{
-                    flex: 1, padding: '8px', borderRadius: 8, border: '1px solid',
-                    borderColor: type === t ? TYPE_COLORS[t] + '60' : 'var(--border-default)',
-                    background: type === t ? TYPE_COLORS[t] + '15' : 'transparent',
-                    color: type === t ? TYPE_COLORS[t] : 'var(--text-muted)',
-                    fontSize: 13, fontWeight: type === t ? 600 : 400, cursor: 'pointer', fontFamily: 'inherit',
-                  }}
-                >
-                  {t === 'income' ? '💰 收入' : '💸 支出'}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="form-group">
-            <label className="form-label">分类名称 *</label>
-            <input
-              className="form-input"
-              type="text"
-              placeholder="例：服务器、餐饮、广告"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              autoFocus
-            />
-          </div>
-          <div className="form-group">
-            <label className="form-label">描述（可选）</label>
-            <input
-              className="form-input"
-              type="text"
-              placeholder="简短说明"
-              value={desc}
-              onChange={(e) => setDesc(e.target.value)}
-            />
-          </div>
-          <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-            <button type="button" className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setModalOpen(false)}>取消</button>
-            <button type="submit" className="btn btn-primary" style={{ flex: 2 }} disabled={saving}>
-              {saving ? '创建中...' : '确认创建'}
-            </button>
-          </div>
-        </form>
-      </Modal>
+      <div style={{ marginBottom: 24 }}><h1 className="page-title">业务设置</h1><p className="page-subtitle">维护固定场子、输返比例和成员垫付分类</p></div>
+      <section className="glass-card" style={{ padding: 20, marginBottom: 18 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 14 }}><div><h3>场子配置</h3><p style={{ color: 'var(--text-muted)', fontSize: 12 }}>输返比例决定每日流水采用哪组工资规则</p></div><button className="btn btn-primary btn-sm" onClick={() => openVenue()}><Plus size={14} />新增场子</button></div>
+        {!venues.length ? <div className="empty-state">尚未维护场子</div> : <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 10 }}>{venues.map((venue) => <div key={venue.id} style={{ border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 14, background: 'rgba(255,255,255,.025)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}><strong>{venue.name}</strong><span className="badge">{venue.is_active ? '启用' : '停用'}</span></div>
+          <div style={{ color: 'var(--text-muted)', fontSize: 12, margin: '8px 0 12px' }}>输返比例：{venue.rebate_rate}</div>
+          <div style={{ display: 'flex', gap: 8 }}><button className="btn btn-ghost btn-sm" onClick={() => openVenue(venue)}><Pencil size={13} />更新</button><button className="btn btn-ghost btn-sm" onClick={() => toggleVenue(venue)}>{venue.is_active ? '停用' : '启用'}</button></div>
+        </div>)}</div>}
+      </section>
+      <section className="glass-card" style={{ padding: 20 }}>
+        <div style={{ marginBottom: 14 }}><h3>垫付分类</h3><p style={{ color: 'var(--text-muted)', fontSize: 12 }}>例如差旅费、餐饮费、采购费</p></div>
+        <form onSubmit={addCategory} style={{ display: 'flex', gap: 8, marginBottom: 14 }}><input className="form-input" value={categoryName} onChange={(e) => setCategoryName(e.target.value)} placeholder="新增分类名称" required /><button className="btn btn-primary" type="submit"><Plus size={14} />新增</button></form>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>{categories.map((category) => <div key={category.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', border: '1px solid var(--border-subtle)', borderRadius: 9 }}><Tag size={13} />{category.name}<button className="btn btn-danger btn-sm btn-icon" onClick={() => categoriesApi.delete(category.id).then(load)}><Trash2 size={11} /></button></div>)}</div>
+      </section>
+      <Modal isOpen={venueModal} onClose={() => setVenueModal(false)} title={venueTarget ? '更新场子' : '新增场子'}><form onSubmit={saveVenue}><div className="form-group"><label className="form-label">场子名称 *</label><input className="form-input" value={venueName} onChange={(e) => setVenueName(e.target.value)} required /></div><div className="form-group"><label className="form-label">输返比例 *</label><select className="form-input" value={rate} onChange={(e) => setRate(e.target.value)}>{rates.map((item) => <option key={item} value={item}>{item}</option>)}</select></div><button className="btn btn-primary" type="submit">保存场子</button></form></Modal>
     </>
   )
 }

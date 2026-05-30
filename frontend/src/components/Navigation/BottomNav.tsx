@@ -1,10 +1,11 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, ArrowLeftRight, Users, Settings } from 'lucide-react'
+import { LayoutDashboard, ArrowLeftRight, ReceiptText, Users, Settings } from 'lucide-react'
 import { motion } from 'framer-motion'
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: '仪表盘', end: true },
   { to: '/transactions', icon: ArrowLeftRight, label: '流水' },
+  { to: '/expenses', icon: ReceiptText, label: '垫付' },
   { to: '/members', icon: Users, label: '成员' },
   { to: '/settings', icon: Settings, label: '设置' },
 ]

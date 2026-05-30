@@ -1,4 +1,4 @@
-"""薪资账期结算模型。"""
+"""薪资账期与发放模型。"""
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
@@ -13,11 +13,10 @@ from app.database import Base
 
 if TYPE_CHECKING:
     from app.models.member import Member
-    from app.models.transaction import Transaction
 
 
 class SalarySettlement(Base):
-    """记录单个成员在一个账期内的应付、已付和未付工资。"""
+    """记录成员月度工资账期，应付金额由有效计提动态汇总。"""
 
     __tablename__ = "salary_settlements"
     __table_args__ = (
@@ -43,13 +42,6 @@ class SalarySettlement(Base):
     )
     period_start: Mapped[date] = mapped_column(Date, nullable=False, index=True)
     period_end: Mapped[date] = mapped_column(Date, nullable=False, index=True)
-    payable_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
-    paid_amount: Mapped[Decimal] = mapped_column(
-        Numeric(12, 2),
-        nullable=False,
-        default=Decimal("0"),
-        server_default=text("0"),
-    )
     remark: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True),
@@ -66,8 +58,8 @@ class SalarySettlement(Base):
     member: Mapped["Member"] = relationship(
         "Member", back_populates="salary_settlements", lazy="joined"
     )
-    transactions: Mapped[List["Transaction"]] = relationship(
-        "Transaction", back_populates="salary_settlement", lazy="select"
+    payments: Mapped[List["SalaryPayment"]] = relationship(
+        "SalaryPayment", back_populates="settlement", lazy="select"
     )
 
     def __repr__(self) -> str:
@@ -75,3 +67,39 @@ class SalarySettlement(Base):
             f"<SalarySettlement id={self.id} member_id={self.member_id} "
             f"period={self.period_start}:{self.period_end}>"
         )
+
+
+class SalaryPayment(Base):
+    """记录成员工资的实际发放。"""
+
+    __tablename__ = "salary_payments"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        server_default=text("gen_random_uuid()"),
+    )
+    settlement_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("salary_settlements.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    remark: Mapped[str | None] = mapped_column(Text, nullable=True)
+    paid_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        server_default=text("NOW()"),
+        index=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        server_default=text("NOW()"),
+    )
+
+    settlement: Mapped["SalarySettlement"] = relationship(
+        "SalarySettlement", back_populates="payments", lazy="joined"
+    )

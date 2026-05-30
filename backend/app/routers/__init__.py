@@ -1,4 +1,4 @@
-"""Routers package — export all routers."""
-from app.routers import income, expense, salary, transactions, members, categories, dashboard
+"""路由包。"""
+from app.routers import categories, dashboard, expenses, flows, members, salary, venues
 
-__all__ = ["income", "expense", "salary", "transactions", "members", "categories", "dashboard"]
+__all__ = ["categories", "dashboard", "expenses", "flows", "members", "salary", "venues"]
