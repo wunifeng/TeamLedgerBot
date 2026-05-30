@@ -40,7 +40,7 @@ export const flowsApi = {
 export const expensesApi = {
   list: (params?: { member_id?: string; reimbursed?: boolean }) =>
     apiClient.get<MemberExpenseListResponse>('/api/expenses', { params }).then((r) => r.data),
-  create: (data: FormData) => apiClient.post<MemberExpenseResponse>('/api/expenses', data).then((r) => r.data),
+  create: (data: FormData) => apiClient.post<MemberExpenseResponse>('/api/expenses', data, { headers: { 'Content-Type': 'multipart/form-data' } }).then((r) => r.data),
   patch: (id: string, data: MemberExpenseUpdate) => apiClient.patch<MemberExpenseResponse>(`/api/expenses/${id}`, data).then((r) => r.data),
   setReimbursed: (id: string, reimbursed: boolean) =>
     apiClient.patch<MemberExpenseResponse>(`/api/expenses/${id}/reimbursed`, { reimbursed }).then((r) => r.data),

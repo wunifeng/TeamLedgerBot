@@ -31,8 +31,12 @@ apiClient.interceptors.response.use(
         window.location.href = '/login'
       }
     }
+    let detail = error.response?.data?.detail;
+    if (Array.isArray(detail)) {
+      detail = detail.map((err: any) => err.msg || JSON.stringify(err)).join(', ');
+    }
     const message =
-      error.response?.data?.detail ??
+      detail ??
       error.message ??
       '请求失败，请稍后重试'
     return Promise.reject(new Error(message))
