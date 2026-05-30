@@ -5,6 +5,7 @@ export interface MemberResponse {
   name: string
   role: string | null
   is_active: boolean
+  is_admin: boolean
   created_at: string
 }
 
@@ -44,6 +45,14 @@ export interface DailyFlowCreate {
   remark?: string
 }
 
+export interface DailyFlowUpdate {
+  principal?: number
+  chip_code?: number
+  loss_rebate?: number
+  profit_loss?: number
+  remark?: string
+}
+
 export interface DailyFlowResponse extends DailyFlowCreate {
   id: string
   member_name: string
@@ -63,6 +72,16 @@ export interface DailyFlowListResponse {
   pages: number
 }
 
+export interface FlowChangeLogResponse {
+  id: string
+  flow_id: string
+  changed_at: string
+  operator_name: string
+  change_type: 'create' | 'update' | 'delete'
+  before_data: Record<string, string | null> | null
+  after_data: Record<string, string | null> | null
+}
+
 export interface MemberExpenseResponse {
   id: string
   business_date: string
@@ -76,6 +95,22 @@ export interface MemberExpenseResponse {
   reimbursed: boolean
   created_at: string
   updated_at: string
+}
+
+export interface MemberExpenseUpdate {
+  amount?: number
+  category_id?: string | null
+  remark?: string | null
+}
+
+export interface ExpenseChangeLogResponse {
+  id: string
+  expense_id: string
+  changed_at: string
+  operator_name: string
+  change_type: 'create' | 'update' | 'delete'
+  before_data: Record<string, string | null> | null
+  after_data: Record<string, string | null> | null
 }
 
 export interface MemberExpenseListResponse {
@@ -146,4 +181,17 @@ export interface VenueBreakdownResponse {
     profit_loss: number
     flow_count: number
   }>
+}
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+
+export interface LoginRequest {
+  member_name: string
+  pin: string
+}
+
+export interface TokenResponse {
+  access_token: string
+  token_type: string
+  member: MemberResponse
 }

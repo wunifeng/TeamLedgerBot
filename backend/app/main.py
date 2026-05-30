@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from app.config import settings
 from app.database import engine
 
-from app.routers import categories, dashboard, expenses, flows, members, salary, venues
+from app.routers import auth, categories, dashboard, expenses, flows, members, salary, venues
 
 logging.basicConfig(
     level=logging.INFO if settings.APP_ENV == "production" else logging.DEBUG,
@@ -67,6 +67,7 @@ app.add_middleware(
 )
 
 # ── API Routers ───────────────────────────────────────────────────────────────
+app.include_router(auth.router, prefix="/auth", tags=["Auth"])
 app.include_router(flows.router, prefix="/api", tags=["Flows"])
 app.include_router(expenses.router, prefix="/api", tags=["Expenses"])
 app.include_router(salary.router, prefix="/api", tags=["Salary"])

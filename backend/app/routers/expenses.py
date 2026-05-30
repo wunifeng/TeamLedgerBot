@@ -1,17 +1,25 @@
-"""成员垫付支出路由。"""
+"""成员垫付支出路由（含鉴权、编辑、历史）。"""
 import uuid
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import get_db
-from app.schemas.expense import MemberExpenseListResponse, MemberExpenseResponse, MemberExpenseStatusUpdate
+from app.models.member import Member
+from app.schemas.expense import (
+    ExpenseChangeLogResponse,
+    MemberExpenseListResponse,
+    MemberExpenseResponse,
+    MemberExpenseStatusUpdate,
+    MemberExpenseUpdate,
+)
 from app.services import expense_service, telegram_service
+from app.services.auth_service import get_current_member
 
 router = APIRouter()
 _MAX_RECEIPT_BYTES = 10 * 1024 * 1024
@@ -34,7 +42,12 @@ async def _store_receipt(receipt: Optional[UploadFile]) -> Optional[str]:
     return f"/uploads/{filename}"
 
 
-@router.post("/expenses", response_model=MemberExpenseResponse, status_code=status.HTTP_201_CREATED, summary="Create member expense")
+@router.post(
+    "/expenses",
+    response_model=MemberExpenseResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create member expense",
+)
 async def create_expense(
     business_date: date = Form(...),
     member_id: uuid.UUID = Form(...),
@@ -43,15 +56,18 @@ async def create_expense(
     remark: Optional[str] = Form(None, max_length=500),
     receipt: Optional[UploadFile] = File(None),
     db: AsyncSession = Depends(get_db),
+    current_member: Member = Depends(get_current_member),
 ) -> MemberExpenseResponse:
     try:
-        result = await expense_service.create_expense(db, business_date, member_id, amount, category_id, remark, None)
+        result = await expense_service.create_expense(
+            db, business_date, member_id, amount, category_id, remark, None, operator=current_member
+        )
     except LookupError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
     receipt_url = await _store_receipt(receipt)
     if receipt_url:
         result = await expense_service.attach_receipt(db, result.id, receipt_url)
-    await telegram_service.notify_member_expense(result)
+    await telegram_service.notify_member_expense(result, operator_name=current_member.name)
     return result
 
 
@@ -60,15 +76,65 @@ async def list_expenses(
     member_id: Optional[uuid.UUID] = Query(None),
     reimbursed: Optional[bool] = Query(None),
     db: AsyncSession = Depends(get_db),
+    _: Member = Depends(get_current_member),
 ) -> MemberExpenseListResponse:
     return await expense_service.list_expenses(db, member_id, reimbursed)
 
 
-@router.patch("/expenses/{expense_id}/reimbursed", response_model=MemberExpenseResponse, summary="Update reimbursement status")
+@router.patch(
+    "/expenses/{expense_id}",
+    response_model=MemberExpenseResponse,
+    summary="Update member expense",
+    description="修改支出的金额、分类或备注。管理员可修改所有人，成员只能修改自己的。",
+)
+async def update_expense(
+    expense_id: uuid.UUID,
+    data: MemberExpenseUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_member: Member = Depends(get_current_member),
+) -> MemberExpenseResponse:
+    try:
+        result = await expense_service.update_expense(db, expense_id, data, operator=current_member)
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+
+    # 取最新变更日志的 before_data
+    from sqlalchemy import select, desc
+    from app.models.member_expense import ExpenseChangeLog
+    last_log = (await db.execute(
+        select(ExpenseChangeLog)
+        .where(ExpenseChangeLog.expense_id == expense_id, ExpenseChangeLog.change_type == "update")
+        .order_by(desc(ExpenseChangeLog.changed_at))
+        .limit(1)
+    )).scalar_one_or_none()
+    before_data = last_log.before_data if last_log else {}
+    await telegram_service.notify_expense_updated(result, operator_name=current_member.name, before_data=before_data)
+    return result
+
+
+@router.get(
+    "/expenses/{expense_id}/history",
+    response_model=List[ExpenseChangeLogResponse],
+    summary="Get expense change history",
+)
+async def get_expense_history(
+    expense_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    _: Member = Depends(get_current_member),
+) -> List[ExpenseChangeLogResponse]:
+    return await expense_service.get_expense_history(db, expense_id)
+
+
+@router.patch(
+    "/expenses/{expense_id}/reimbursed",
+    response_model=MemberExpenseResponse,
+    summary="Update reimbursement status",
+)
 async def update_reimbursed(
     expense_id: uuid.UUID,
     data: MemberExpenseStatusUpdate,
     db: AsyncSession = Depends(get_db),
+    _: Member = Depends(get_current_member),
 ) -> MemberExpenseResponse:
     try:
         return await expense_service.update_reimbursed(db, expense_id, data.reimbursed)
@@ -76,9 +142,18 @@ async def update_reimbursed(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
 
 
-@router.delete("/expenses/{expense_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete member expense")
-async def delete_expense(expense_id: uuid.UUID, db: AsyncSession = Depends(get_db)) -> None:
+@router.delete(
+    "/expenses/{expense_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete member expense",
+)
+async def delete_expense(
+    expense_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_member: Member = Depends(get_current_member),
+) -> None:
     try:
-        await expense_service.delete_expense(db, expense_id)
+        snapshot = await expense_service.delete_expense(db, expense_id, operator=current_member)
     except LookupError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+    await telegram_service.notify_expense_deleted(snapshot, operator_name=current_member.name)

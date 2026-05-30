@@ -1,6 +1,7 @@
 """Telegram 群组通知服务。"""
 import logging
 from html import escape
+from typing import Optional
 
 import httpx
 
@@ -29,8 +30,8 @@ async def _send(text: str) -> None:
         logger.error("Telegram send failed: %s", exc)
 
 
-async def notify_daily_flow(flow: DailyFlowResponse) -> None:
-    """发送每日流水通知。"""
+async def notify_daily_flow(flow: DailyFlowResponse, operator_name: str) -> None:
+    """发送新增每日流水通知。"""
 
     await _send(
         "<b>新增每日流水</b>\n\n"
@@ -44,12 +45,57 @@ async def notify_daily_flow(flow: DailyFlowResponse) -> None:
         f"<b>输反：</b> {flow.loss_rebate}\n"
         f"<b>赢亏：</b> {flow.profit_loss}\n"
         f"<b>工资：</b> {flow.salary_amount}\n"
-        f"<b>备注：</b> {escape(flow.remark or '无')}"
+        f"<b>备注：</b> {escape(flow.remark or '无')}\n"
+        f"<b>操作人：</b> {escape(operator_name)}"
     )
 
 
-async def notify_member_expense(expense: MemberExpenseResponse) -> None:
-    """发送成员垫付支出通知。"""
+async def notify_flow_updated(
+    flow: DailyFlowResponse,
+    operator_name: str,
+    before_data: dict,
+) -> None:
+    """发送流水修改通知，包含关键字段变更前后对比。"""
+
+    def fmt_diff(key: str, label: str) -> str:
+        old = before_data.get(key)
+        new_val = getattr(flow, key, None)
+        if new_val is not None:
+            new_val = str(new_val)
+        if old != new_val:
+            return f"<b>{label}：</b> {escape(str(old or '—'))} → {escape(str(new_val or '—'))}\n"
+        return f"<b>{label}：</b> {escape(str(new_val or '—'))}\n"
+
+    await _send(
+        "<b>✏️ 修改每日流水</b>\n\n"
+        f"<b>日期：</b> {flow.business_date}\n"
+        f"<b>人员：</b> {escape(flow.member_name)}\n"
+        f"<b>场子：</b> {escape(flow.venue_name)}\n"
+        + fmt_diff("principal", "本金")
+        + fmt_diff("chip_code", "点码")
+        + fmt_diff("loss_rebate", "输反")
+        + fmt_diff("profit_loss", "赢亏")
+        + f"<b>工资：</b> {before_data.get('salary_amount', '—')} → {flow.salary_amount}\n"
+        f"<b>操作人：</b> {escape(operator_name)}"
+    )
+
+
+async def notify_flow_deleted(snapshot: dict, operator_name: str) -> None:
+    """发送流水删除通知。"""
+
+    await _send(
+        "<b>🗑️ 删除每日流水</b>\n\n"
+        f"<b>日期：</b> {snapshot.get('business_date', '—')}\n"
+        f"<b>人员：</b> {escape(snapshot.get('member_name', '—'))}\n"
+        f"<b>场子：</b> {escape(snapshot.get('venue_name', '—'))}\n"
+        f"<b>赢亏：</b> {snapshot.get('profit_loss', '—')}\n"
+        f"<b>工资：</b> {snapshot.get('salary_amount', '—')}\n"
+        f"<b>操作人：</b> {escape(operator_name)}"
+    )
+
+
+async def notify_member_expense(expense: MemberExpenseResponse, operator_name: str) -> None:
+    """发送新增成员垫付支出通知。"""
 
     await _send(
         "<b>新增成员垫付支出</b>\n\n"
@@ -57,7 +103,42 @@ async def notify_member_expense(expense: MemberExpenseResponse) -> None:
         f"<b>人员：</b> {escape(expense.member_name)}\n"
         f"<b>分类：</b> {escape(expense.category_name or '未分类')}\n"
         f"<b>金额：</b> {expense.amount}\n"
-        f"<b>备注：</b> {escape(expense.remark or '无')}"
+        f"<b>备注：</b> {escape(expense.remark or '无')}\n"
+        f"<b>操作人：</b> {escape(operator_name)}"
+    )
+
+
+async def notify_expense_updated(
+    expense: MemberExpenseResponse,
+    operator_name: str,
+    before_data: dict,
+) -> None:
+    """发送支出修改通知。"""
+
+    old_amount = before_data.get("amount", "—")
+    new_amount = str(expense.amount)
+
+    await _send(
+        "<b>✏️ 修改垫付支出</b>\n\n"
+        f"<b>日期：</b> {expense.business_date}\n"
+        f"<b>人员：</b> {escape(expense.member_name)}\n"
+        f"<b>金额：</b> {escape(str(old_amount))} → {escape(new_amount)}\n"
+        f"<b>分类：</b> {escape(expense.category_name or '未分类')}\n"
+        f"<b>备注：</b> {escape(expense.remark or '无')}\n"
+        f"<b>操作人：</b> {escape(operator_name)}"
+    )
+
+
+async def notify_expense_deleted(snapshot: dict, operator_name: str) -> None:
+    """发送支出删除通知。"""
+
+    await _send(
+        "<b>🗑️ 删除垫付支出</b>\n\n"
+        f"<b>人员：</b> {escape(snapshot.get('member_name', '—'))}\n"
+        f"<b>金额：</b> {snapshot.get('amount', '—')}\n"
+        f"<b>分类：</b> {escape(snapshot.get('category_name') or '未分类')}\n"
+        f"<b>备注：</b> {escape(snapshot.get('remark') or '无')}\n"
+        f"<b>操作人：</b> {escape(operator_name)}"
     )
 
 

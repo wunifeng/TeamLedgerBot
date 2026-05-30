@@ -36,6 +36,11 @@ class Settings(BaseSettings):
     RISK_FREQUENCY_LIMIT: int = 5
     RISK_FREQUENCY_WINDOW_SECONDS: int = 600
 
+    # ── JWT Authentication ────────────────────────────────────
+    JWT_SECRET_KEY: str = "change-me-in-production-use-a-long-random-string"
+    JWT_ALGORITHM: str = "HS256"
+    JWT_EXPIRE_HOURS: int = 8
+
     @property
     def cors_origins_list(self) -> List[str]:
         """Return CORS_ORIGINS as a list, supporting comma-separated values."""

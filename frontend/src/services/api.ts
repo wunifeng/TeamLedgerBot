@@ -4,14 +4,20 @@ import type {
   DailyFlowCreate,
   DailyFlowListResponse,
   DailyFlowResponse,
+  DailyFlowUpdate,
   DailyTrendResponse,
+  ExpenseChangeLogResponse,
+  FlowChangeLogResponse,
+  LoginRequest,
   MemberCreate,
   MemberExpenseListResponse,
   MemberExpenseResponse,
+  MemberExpenseUpdate,
   MemberResponse,
   SalaryPaymentResponse,
   SalarySettlementListResponse,
   SummaryResponse,
+  TokenResponse,
   VenueBreakdownResponse,
   VenueResponse,
 } from '@/types/api'
@@ -26,16 +32,20 @@ export const flowsApi = {
   list: (params?: { member_id?: string; venue_id?: string; start_date?: string; end_date?: string; page?: number; limit?: number }) =>
     apiClient.get<DailyFlowListResponse>('/api/flows', { params }).then((r) => r.data),
   create: (data: DailyFlowCreate) => apiClient.post<DailyFlowResponse>('/api/flows', data).then((r) => r.data),
+  patch: (id: string, data: DailyFlowUpdate) => apiClient.patch<DailyFlowResponse>(`/api/flows/${id}`, data).then((r) => r.data),
   delete: (id: string) => apiClient.delete(`/api/flows/${id}`),
+  history: (id: string) => apiClient.get<FlowChangeLogResponse[]>(`/api/flows/${id}/history`).then((r) => r.data),
 }
 
 export const expensesApi = {
   list: (params?: { member_id?: string; reimbursed?: boolean }) =>
     apiClient.get<MemberExpenseListResponse>('/api/expenses', { params }).then((r) => r.data),
   create: (data: FormData) => apiClient.post<MemberExpenseResponse>('/api/expenses', data).then((r) => r.data),
+  patch: (id: string, data: MemberExpenseUpdate) => apiClient.patch<MemberExpenseResponse>(`/api/expenses/${id}`, data).then((r) => r.data),
   setReimbursed: (id: string, reimbursed: boolean) =>
     apiClient.patch<MemberExpenseResponse>(`/api/expenses/${id}/reimbursed`, { reimbursed }).then((r) => r.data),
   delete: (id: string) => apiClient.delete(`/api/expenses/${id}`),
+  history: (id: string) => apiClient.get<ExpenseChangeLogResponse[]>(`/api/expenses/${id}/history`).then((r) => r.data),
 }
 
 export const salaryApi = {
@@ -49,7 +59,7 @@ export const membersApi = {
   list: (include_inactive = false) =>
     apiClient.get<MemberResponse[]>('/api/members', { params: { include_inactive } }).then((r) => r.data),
   create: (data: MemberCreate) => apiClient.post<MemberResponse>('/api/members', data).then((r) => r.data),
-  update: (id: string, data: Partial<MemberCreate & { is_active: boolean }>) =>
+  update: (id: string, data: Partial<MemberCreate & { is_active: boolean; is_admin: boolean }>) =>
     apiClient.patch<MemberResponse>(`/api/members/${id}`, data).then((r) => r.data),
 }
 
@@ -69,4 +79,11 @@ export const categoriesApi = {
   createExpense: (data: { name: string; description?: string }) =>
     apiClient.post<CategoryResponse>('/api/categories', { ...data, type: 'expense' }).then((r) => r.data),
   delete: (id: string) => apiClient.delete(`/api/categories/${id}`),
+}
+
+export const authApi = {
+  login: (data: LoginRequest) => apiClient.post<TokenResponse>('/auth/login', data).then((r) => r.data),
+  me: () => apiClient.get<MemberResponse>('/auth/me').then((r) => r.data),
+  setPin: (memberId: string, pin: string) =>
+    apiClient.post('/auth/set-pin', { member_id: memberId, pin }),
 }

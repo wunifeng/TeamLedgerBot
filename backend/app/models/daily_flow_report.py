@@ -2,7 +2,7 @@
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Optional
 
 from sqlalchemy import Boolean, Date, ForeignKey, Index, JSON, Numeric, String, Text, func, text
 from sqlalchemy.dialects.postgresql import UUID
@@ -67,6 +67,9 @@ class DailyFlowReport(Base):
     salary_accrual: Mapped["SalaryAccrual"] = relationship(
         "SalaryAccrual", back_populates="daily_flow_report", uselist=False, lazy="joined"
     )
+    change_logs: Mapped[List["FlowChangeLog"]] = relationship(
+        "FlowChangeLog", back_populates="flow", lazy="select", cascade="all, delete-orphan"
+    )
 
 
 class SalaryAccrual(Base):
@@ -97,4 +100,42 @@ class SalaryAccrual(Base):
 
     daily_flow_report: Mapped["DailyFlowReport"] = relationship(
         "DailyFlowReport", back_populates="salary_accrual", lazy="joined"
+    )
+
+
+class FlowChangeLog(Base):
+    """记录每日流水的创建、修改、删除操作历史。"""
+
+    __tablename__ = "flow_change_logs"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        server_default=text("gen_random_uuid()"),
+    )
+    flow_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("daily_flow_reports.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    changed_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False, server_default=text("NOW()"), index=True
+    )
+    operator_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("members.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    operator_name: Mapped[str] = mapped_column(Text, nullable=False)
+    change_type: Mapped[str] = mapped_column(String(20), nullable=False)  # create | update | delete
+    before_data: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    after_data: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+
+    flow: Mapped["DailyFlowReport"] = relationship(
+        "DailyFlowReport", back_populates="change_logs", lazy="select"
+    )
+    operator: Mapped[Optional["Member"]] = relationship(
+        "Member", back_populates="flow_change_logs", lazy="joined"
     )
