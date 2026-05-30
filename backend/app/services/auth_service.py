@@ -6,7 +6,7 @@ from typing import Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+import bcrypt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,7 +14,6 @@ from app.config import settings
 from app.database import get_db
 from app.models.member import Member
 
-_pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 _bearer = HTTPBearer(auto_error=False)
 
 
@@ -22,12 +21,17 @@ _bearer = HTTPBearer(auto_error=False)
 
 def hash_pin(pin: str) -> str:
     """将明文 PIN 哈希为 bcrypt 字符串。"""
-    return _pwd_context.hash(pin)
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(pin.encode(), salt).decode()
 
 
 def verify_pin(plain_pin: str, hashed_pin: str) -> bool:
     """验证明文 PIN 与哈希是否匹配。"""
-    return _pwd_context.verify(plain_pin, hashed_pin)
+    try:
+        return bcrypt.checkpw(plain_pin.encode(), hashed_pin.encode())
+    except ValueError:
+        return False
+
 
 
 # ── JWT 工具 ──────────────────────────────────────────────────────────────────
