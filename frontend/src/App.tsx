@@ -7,6 +7,7 @@ import ExpensesPage from '@/pages/Expenses/ExpensesPage'
 import MembersPage from '@/pages/Members/MembersPage'
 import SettingsPage from '@/pages/Settings/SettingsPage'
 import LoginPage from '@/pages/Login/LoginPage'
+import { ToastContainer } from '@/components/UI/ToastContainer'
 
 /** 路由守卫：未登录时跳转 /login */
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -41,6 +42,7 @@ export default function App() {
           </Route>
         </Routes>
       </BrowserRouter>
+      <ToastContainer />
     </AppProvider>
   )
 }

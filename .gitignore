@@ -25,3 +25,7 @@ backend/uploads/
 # Workflows and AI Tools
 .Codex/
 .spec-workflow/
+
+#temp files
+temp*
+members.json

@@ -1,7 +1,6 @@
 import { Outlet } from 'react-router-dom'
 import { Sidebar } from './Navigation/Sidebar'
 import { BottomNav } from './Navigation/BottomNav'
-import { ToastContainer } from './UI/ToastContainer'
 
 export function Layout() {
   return (
@@ -13,7 +12,6 @@ export function Layout() {
         </div>
       </main>
       <BottomNav />
-      <ToastContainer />
     </div>
   )
 }
