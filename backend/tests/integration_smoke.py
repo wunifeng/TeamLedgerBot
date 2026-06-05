@@ -10,7 +10,7 @@ from app.models.category import Category
 from app.models.member import Member
 from app.models.venue import Venue
 from app.schemas.flow import DailyFlowCreate
-from app.schemas.salary import SalaryPaymentCreate
+from app.schemas.salary import SalaryPaymentCreate, SalaryPaymentVoidCreate
 from app.services import expense_service, flow_service, reporting_service, salary_service
 
 
@@ -125,6 +125,16 @@ async def run() -> None:
             SalaryPaymentCreate(amount=Decimal("10")),
         )
         assert payment.settlement.unpaid_amount == Decimal("5")
+        assert len(payment.settlement.payments) == 1
+        voided = await salary_service.void_payment(
+            session,
+            payment.payment.id,
+            SalaryPaymentVoidCreate(reason="金额登记错误"),
+            member.id,
+        )
+        assert voided.payment.voided_at is not None
+        assert voided.settlement.paid_amount == Decimal("0")
+        assert voided.settlement.unpaid_amount == Decimal("15")
 
         summary = await reporting_service.get_summary(session)
         assert summary.total_profit_loss == Decimal("-1200")

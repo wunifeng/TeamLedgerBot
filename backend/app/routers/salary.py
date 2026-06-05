@@ -6,10 +6,26 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.schemas.salary import SalaryPaymentCreate, SalaryPaymentResponse, SalarySettlementListResponse
+from app.models.member import Member
+from app.schemas.salary import (
+    SalaryPaymentCreate,
+    SalaryPaymentResponse,
+    SalaryPaymentVoidCreate,
+    SalarySettlementListResponse,
+)
 from app.services import salary_service, telegram_service
+from app.services.auth_service import get_current_member
 
 router = APIRouter()
+
+
+def _require_admin(member: Member) -> None:
+    """工资实发会影响账务状态，仅管理员可登记或作废。"""
+    if not member.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="无权限：只有管理员才能登记或作废工资发放",
+        )
 
 
 @router.get("/salary/settlements", response_model=SalarySettlementListResponse, summary="List salary settlements")
@@ -29,7 +45,9 @@ async def pay_salary_settlement(
     settlement_id: uuid.UUID,
     data: SalaryPaymentCreate,
     db: AsyncSession = Depends(get_db),
+    current_member: Member = Depends(get_current_member),
 ) -> SalaryPaymentResponse:
+    _require_admin(current_member)
     try:
         result = await salary_service.pay_settlement(db, settlement_id, data)
     except LookupError as exc:
@@ -37,4 +55,22 @@ async def pay_salary_settlement(
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
     await telegram_service.notify_salary_payment(result)
+    return result
+
+
+@router.post("/salary/payments/{payment_id}/void", response_model=SalaryPaymentResponse, summary="Void salary payment")
+async def void_salary_payment(
+    payment_id: uuid.UUID,
+    data: SalaryPaymentVoidCreate,
+    db: AsyncSession = Depends(get_db),
+    current_member: Member = Depends(get_current_member),
+) -> SalaryPaymentResponse:
+    _require_admin(current_member)
+    try:
+        result = await salary_service.void_payment(db, payment_id, data, current_member.id)
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+    await telegram_service.notify_salary_payment_voided(result, current_member.name)
     return result

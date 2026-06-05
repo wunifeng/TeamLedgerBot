@@ -53,6 +53,8 @@ export const salaryApi = {
     apiClient.get<SalarySettlementListResponse>('/api/salary/settlements', { params }).then((r) => r.data),
   paySettlement: (id: string, data: { amount: number; remark?: string }) =>
     apiClient.post<SalaryPaymentResponse>(`/api/salary/settlements/${id}/pay`, data).then((r) => r.data),
+  voidPayment: (id: string, data: { reason?: string }) =>
+    apiClient.post<SalaryPaymentResponse>(`/api/salary/payments/${id}/void`, data).then((r) => r.data),
 }
 
 export const membersApi = {

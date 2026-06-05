@@ -94,6 +94,18 @@ class SalaryPayment(Base):
         server_default=text("NOW()"),
         index=True,
     )
+    voided_at: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=True,
+        index=True,
+    )
+    void_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    voided_by_member_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("members.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True),
         nullable=False,

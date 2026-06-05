@@ -4,7 +4,7 @@ from app.schemas.category import CategoryCreate, CategoryUpdate, CategoryRespons
 from app.schemas.dashboard import DailyTrendResponse, SummaryResponse, VenueBreakdownResponse
 from app.schemas.expense import MemberExpenseListResponse, MemberExpenseResponse, MemberExpenseStatusUpdate
 from app.schemas.flow import DailyFlowCreate, DailyFlowListResponse, DailyFlowResponse
-from app.schemas.salary import SalaryPaymentCreate, SalaryPaymentResponse, SalarySettlementListResponse, SalarySettlementResponse
+from app.schemas.salary import SalaryPaymentCreate, SalaryPaymentResponse, SalaryPaymentVoidCreate, SalarySettlementListResponse, SalarySettlementResponse
 from app.schemas.venue import VenueCreate, VenueResponse, VenueUpdate
 
 __all__ = [
@@ -14,6 +14,6 @@ __all__ = [
     "DailyFlowCreate", "DailyFlowResponse", "DailyFlowListResponse",
     "MemberExpenseResponse", "MemberExpenseListResponse", "MemberExpenseStatusUpdate",
     "SummaryResponse", "DailyTrendResponse", "VenueBreakdownResponse",
-    "SalaryPaymentCreate", "SalaryPaymentResponse",
+    "SalaryPaymentCreate", "SalaryPaymentResponse", "SalaryPaymentVoidCreate",
     "SalarySettlementListResponse", "SalarySettlementResponse",
 ]

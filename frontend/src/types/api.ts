@@ -130,6 +130,7 @@ export interface SalarySettlementResponse {
   unpaid_amount: number
   status: SalarySettlementStatus
   remark: string | null
+  payments: SalaryPaymentItem[]
   created_at: string
   updated_at: string
 }
@@ -143,13 +144,17 @@ export interface SalarySettlementListResponse {
 
 export interface SalaryPaymentResponse {
   settlement: SalarySettlementResponse
-  payment: {
-    id: string
-    settlement_id: string
-    amount: number
-    remark: string | null
-    paid_at: string
-  }
+  payment: SalaryPaymentItem
+}
+
+export interface SalaryPaymentItem {
+  id: string
+  settlement_id: string
+  amount: number
+  remark: string | null
+  paid_at: string
+  voided_at: string | null
+  void_reason: string | null
 }
 
 export interface SummaryResponse {

@@ -153,3 +153,17 @@ async def notify_salary_payment(result: SalaryPaymentResponse) -> None:
         f"<b>剩余未付：</b> {result.settlement.unpaid_amount}\n"
         f"<b>备注：</b> {escape(result.payment.remark or '无')}"
     )
+
+
+async def notify_salary_payment_voided(result: SalaryPaymentResponse, operator_name: str) -> None:
+    """发送工资发放作废通知。"""
+
+    await _send(
+        "<b>工资发放作废</b>\n\n"
+        f"<b>人员：</b> {escape(result.settlement.member_name)}\n"
+        f"<b>账期：</b> {result.settlement.period_start} 至 {result.settlement.period_end}\n"
+        f"<b>作废金额：</b> {result.payment.amount}\n"
+        f"<b>剩余未付：</b> {result.settlement.unpaid_amount}\n"
+        f"<b>作废原因：</b> {escape(result.payment.void_reason or '无')}\n"
+        f"<b>操作人：</b> {escape(operator_name)}"
+    )

@@ -12,12 +12,18 @@ class SalaryPaymentCreate(BaseModel):
     remark: Optional[str] = Field(None, max_length=500)
 
 
+class SalaryPaymentVoidCreate(BaseModel):
+    reason: Optional[str] = Field(None, max_length=500)
+
+
 class SalaryPaymentItem(BaseModel):
     id: uuid.UUID
     settlement_id: uuid.UUID
     amount: Decimal
     remark: Optional[str]
     paid_at: datetime
+    voided_at: Optional[datetime] = None
+    void_reason: Optional[str] = None
 
 
 class SalarySettlementResponse(BaseModel):
@@ -31,6 +37,7 @@ class SalarySettlementResponse(BaseModel):
     unpaid_amount: Decimal
     status: str
     remark: Optional[str]
+    payments: List[SalaryPaymentItem] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
 

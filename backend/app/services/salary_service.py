@@ -1,8 +1,7 @@
 """工资月结与实际发放服务。"""
 import uuid
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal
-from typing import Optional
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,6 +14,7 @@ from app.schemas.salary import (
     SalaryPaymentCreate,
     SalaryPaymentItem,
     SalaryPaymentResponse,
+    SalaryPaymentVoidCreate,
     SalarySettlementListResponse,
     SalarySettlementResponse,
 )
@@ -52,10 +52,33 @@ async def _payable(
 async def _paid(session: AsyncSession, settlement_id: uuid.UUID) -> Decimal:
     amount = await session.scalar(
         select(func.coalesce(func.sum(SalaryPayment.amount), 0)).where(
-            SalaryPayment.settlement_id == settlement_id
+            SalaryPayment.settlement_id == settlement_id,
+            SalaryPayment.voided_at.is_(None),
         )
     )
     return Decimal(str(amount or 0))
+
+
+async def _payment_items(session: AsyncSession, settlement_id: uuid.UUID) -> list[SalaryPaymentItem]:
+    rows = (
+        await session.execute(
+            select(SalaryPayment)
+            .where(SalaryPayment.settlement_id == settlement_id)
+            .order_by(SalaryPayment.paid_at.desc(), SalaryPayment.created_at.desc())
+        )
+    ).scalars().all()
+    return [
+        SalaryPaymentItem(
+            id=row.id,
+            settlement_id=row.settlement_id,
+            amount=row.amount,
+            remark=row.remark,
+            paid_at=row.paid_at,
+            voided_at=row.voided_at,
+            void_reason=row.void_reason,
+        )
+        for row in rows
+    ]
 
 
 async def _get_or_create_settlement(
@@ -98,6 +121,7 @@ async def _to_response(
     payable = await _payable(session, settlement.member_id, settlement.period_start, settlement.period_end)
     paid = await _paid(session, settlement.id)
     unpaid = max(_ZERO, payable - paid)
+    payments = await _payment_items(session, settlement.id)
     return SalarySettlementResponse(
         id=settlement.id,
         member_id=settlement.member_id,
@@ -109,6 +133,7 @@ async def _to_response(
         unpaid_amount=unpaid,
         status=_status(payable, paid),
         remark=settlement.remark,
+        payments=payments,
         created_at=settlement.created_at,
         updated_at=settlement.updated_at,
     )
@@ -165,13 +190,50 @@ async def pay_settlement(
     )
     session.add(payment)
     await session.flush()
+    settlement_response = await _to_response(session, settlement)
+    payment_item = next(
+        item for item in settlement_response.payments
+        if item.id == payment.id
+    )
     return SalaryPaymentResponse(
-        settlement=await _to_response(session, settlement),
-        payment=SalaryPaymentItem(
-            id=payment.id,
-            settlement_id=payment.settlement_id,
-            amount=payment.amount,
-            remark=payment.remark,
-            paid_at=payment.paid_at,
-        ),
+        settlement=settlement_response,
+        payment=payment_item,
+    )
+
+
+async def void_payment(
+    session: AsyncSession,
+    payment_id: uuid.UUID,
+    data: SalaryPaymentVoidCreate,
+    operator_id: uuid.UUID,
+) -> SalaryPaymentResponse:
+    """作废错误登记的工资发放记录，并保留原始记录。"""
+
+    payment = (
+        await session.execute(
+            select(SalaryPayment)
+            .options(
+                selectinload(SalaryPayment.settlement).selectinload(SalarySettlement.member)
+            )
+            .where(SalaryPayment.id == payment_id)
+        )
+    ).scalar_one_or_none()
+    if payment is None:
+        raise LookupError(f"工资发放记录 {payment_id} 不存在。")
+    if payment.voided_at is not None:
+        raise ValueError("工资发放记录已经作废。")
+
+    payment.voided_at = datetime.now(timezone.utc)
+    payment.void_reason = data.reason
+    payment.voided_by_member_id = operator_id
+    await session.flush()
+
+    settlement_response = await _to_response(session, payment.settlement)
+    payment_item = next(
+        item for item in settlement_response.payments
+        if item.id == payment.id
+    )
+    return SalaryPaymentResponse(
+        settlement=settlement_response,
+        payment=payment_item,
     )

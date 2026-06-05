@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
-import { CalendarDays, CreditCard, KeyRound, Plus, Shield, Trash2, UserPlus, Wallet } from 'lucide-react'
+import { Ban, CalendarDays, CreditCard, KeyRound, Plus, Shield, Trash2, UserPlus, Wallet } from 'lucide-react'
 import { Modal } from '@/components/UI/Modal'
 import { authApi, membersApi, salaryApi } from '@/services/api'
-import type { MemberResponse, SalarySettlementListResponse, SalarySettlementResponse } from '@/types/api'
+import type { MemberResponse, SalaryPaymentItem, SalarySettlementListResponse, SalarySettlementResponse } from '@/types/api'
 import { useApp } from '@/context/AppContext'
 
 const empty: SalarySettlementListResponse = { items: [], total_payable: 0, total_paid: 0, total_unpaid: 0 }
@@ -12,6 +12,17 @@ const range = (month: string) => {
   return { period_start: `${month}-01`, period_end: `${month}-${String(new Date(year, value, 0).getDate()).padStart(2, '0')}` }
 }
 const money = (value: number) => `¥${new Intl.NumberFormat('zh-CN', { minimumFractionDigits: 2 }).format(value || 0)}`
+const timeText = (value: string) => new Intl.DateTimeFormat('zh-CN', {
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+}).format(new Date(value))
+
+interface VoidTarget {
+  settlement: SalarySettlementResponse
+  payment: SalaryPaymentItem
+}
 
 export default function MembersPage() {
   const { showToast, currentMember } = useApp()
@@ -24,6 +35,8 @@ export default function MembersPage() {
   const [payment, setPayment] = useState<SalarySettlementResponse | null>(null)
   const [amount, setAmount] = useState('')
   const [remark, setRemark] = useState('')
+  const [voidTarget, setVoidTarget] = useState<VoidTarget | null>(null)
+  const [voidReason, setVoidReason] = useState('')
 
   // PIN 设置状态
   const [pinTarget, setPinTarget] = useState<MemberResponse | null>(null)
@@ -56,6 +69,15 @@ export default function MembersPage() {
     try {
       await salaryApi.paySettlement(payment.id, { amount: Number(amount), remark: remark || undefined })
       setPayment(null); showToast('工资发放已登记', 'success'); load()
+    } catch (error: any) { showToast(error.message, 'error') }
+  }
+
+  const voidPayment = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!voidTarget) return
+    try {
+      await salaryApi.voidPayment(voidTarget.payment.id, { reason: voidReason || undefined })
+      setVoidTarget(null); setVoidReason(''); showToast('工资发放记录已作废', 'success'); load()
     } catch (error: any) { showToast(error.message, 'error') }
   }
 
@@ -123,6 +145,7 @@ export default function MembersPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 14 }}>
         {members.map((member) => {
           const settlement = settlements.items.find((item) => item.member_id === member.id)
+          const payments = settlement?.payments ?? []
           return (
             <div className="glass-card" style={{ padding: 18 }} key={member.id}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 14 }}>
@@ -150,15 +173,64 @@ export default function MembersPage() {
                 <div><div className="stat-label">未付</div><strong>{money(settlement?.unpaid_amount ?? 0)}</strong></div>
               </div>
 
+              {payments.length > 0 && (
+                <div style={{ borderTop: '1px solid var(--border-default)', paddingTop: 12, marginBottom: 14 }}>
+                  <div className="stat-label" style={{ marginBottom: 8 }}>发放明细</div>
+                  <div style={{ display: 'grid', gap: 8 }}>
+                    {payments.map((item) => {
+                      const voided = !!item.voided_at
+                      const note = voided ? item.void_reason || item.remark : item.remark
+                      return (
+                        <div
+                          key={item.id}
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: currentMember?.is_admin && !voided ? '1fr auto' : '1fr',
+                            gap: 8,
+                            alignItems: 'center',
+                            opacity: voided ? 0.62 : 1,
+                          }}
+                        >
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                              <strong>{money(item.amount)}</strong>
+                              <span className="badge">{voided ? '已作废' : '有效'}</span>
+                              <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>{timeText(item.paid_at)}</span>
+                            </div>
+                            {note && (
+                              <div style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 3 }}>
+                                {note}
+                              </div>
+                            )}
+                          </div>
+                          {currentMember?.is_admin && !voided && (
+                            <button
+                              className="btn btn-ghost btn-sm"
+                              onClick={() => { if (settlement) { setVoidTarget({ settlement, payment: item }); setVoidReason('') } }}
+                              title="作废发放记录"
+                              type="button"
+                            >
+                              <Ban size={14} />作废
+                            </button>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                <button
-                  className="btn btn-ghost btn-sm"
-                  style={{ flex: '1 1 110px' }}
-                  disabled={!settlement || settlement.unpaid_amount <= 0}
-                  onClick={() => { if (settlement) { setPayment(settlement); setAmount(String(settlement.unpaid_amount)); setRemark('') } }}
-                >
-                  <CreditCard size={14} />登记发放
-                </button>
+                {currentMember?.is_admin && (
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    style={{ flex: '1 1 110px' }}
+                    disabled={!settlement || settlement.unpaid_amount <= 0}
+                    onClick={() => { if (settlement) { setPayment(settlement); setAmount(String(settlement.unpaid_amount)); setRemark('') } }}
+                  >
+                    <CreditCard size={14} />登记发放
+                  </button>
+                )}
                 {canSetPin(member) && (
                   <button
                     className="btn btn-ghost btn-sm"
@@ -218,6 +290,27 @@ export default function MembersPage() {
               <input className="form-input" value={remark} onChange={(e) => setRemark(e.target.value)} />
             </div>
             <button className="btn btn-primary" type="submit"><Wallet size={14} />确认发放</button>
+          </form>
+        )}
+      </Modal>
+
+      {/* 工资发放作废 Modal */}
+      <Modal isOpen={!!voidTarget} onClose={() => { setVoidTarget(null); setVoidReason('') }} title="作废工资发放">
+        {voidTarget && (
+          <form onSubmit={voidPayment}>
+            <div className="form-group">
+              <label className="form-label">成员与账期</label>
+              <input className="form-input" value={`${voidTarget.settlement.member_name} · ${voidTarget.settlement.period_start} 至 ${voidTarget.settlement.period_end}`} disabled />
+            </div>
+            <div className="form-group">
+              <label className="form-label">作废金额</label>
+              <input className="form-input" value={money(voidTarget.payment.amount)} disabled />
+            </div>
+            <div className="form-group">
+              <label className="form-label">作废原因</label>
+              <input className="form-input" value={voidReason} onChange={(e) => setVoidReason(e.target.value)} maxLength={500} />
+            </div>
+            <button className="btn btn-danger" type="submit"><Ban size={14} />确认作废</button>
           </form>
         )}
       </Modal>
