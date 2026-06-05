@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { CalendarDays, CreditCard, KeyRound, Plus, Shield, UserPlus, Wallet } from 'lucide-react'
+import { CalendarDays, CreditCard, KeyRound, Plus, Shield, Trash2, UserPlus, Wallet } from 'lucide-react'
 import { Modal } from '@/components/UI/Modal'
 import { authApi, membersApi, salaryApi } from '@/services/api'
 import type { MemberResponse, SalarySettlementListResponse, SalarySettlementResponse } from '@/types/api'
@@ -78,6 +78,21 @@ export default function MembersPage() {
   const canSetPin = (member: MemberResponse) =>
     !!(currentMember?.is_admin || currentMember?.id === member.id)
 
+  // 成员停用保留历史流水、垫付和工资记录，仅管理员可操作他人。
+  const canDeactivateMember = (member: MemberResponse) =>
+    !!(currentMember?.is_admin && currentMember.id !== member.id && member.is_active)
+
+  const deactivateMember = async (member: MemberResponse) => {
+    if (!confirm(`确定停用 ${member.name} 吗？历史流水、垫付和工资记录会保留。`)) return
+    try {
+      await membersApi.delete(member.id)
+      showToast(`${member.name} 已停用`, 'success')
+      await load()
+    } catch (error: any) {
+      showToast(error.message ?? '停用成员失败', 'error')
+    }
+  }
+
   return (
     <>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
@@ -135,10 +150,10 @@ export default function MembersPage() {
                 <div><div className="stat-label">未付</div><strong>{money(settlement?.unpaid_amount ?? 0)}</strong></div>
               </div>
 
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 <button
                   className="btn btn-ghost btn-sm"
-                  style={{ flex: 1 }}
+                  style={{ flex: '1 1 110px' }}
                   disabled={!settlement || settlement.unpaid_amount <= 0}
                   onClick={() => { if (settlement) { setPayment(settlement); setAmount(String(settlement.unpaid_amount)); setRemark('') } }}
                 >
@@ -147,11 +162,21 @@ export default function MembersPage() {
                 {canSetPin(member) && (
                   <button
                     className="btn btn-ghost btn-sm"
-                    style={{ flex: 1 }}
+                    style={{ flex: '1 1 110px' }}
                     onClick={() => { setPinTarget(member); setNewPin('') }}
                     title="设置登录 PIN"
                   >
                     <KeyRound size={14} />设置 PIN
+                  </button>
+                )}
+                {canDeactivateMember(member) && (
+                  <button
+                    className="btn btn-danger btn-sm"
+                    style={{ flex: '1 1 110px' }}
+                    onClick={() => deactivateMember(member)}
+                    title="停用成员并保留历史记录"
+                  >
+                    <Trash2 size={14} />停用
                   </button>
                 )}
               </div>

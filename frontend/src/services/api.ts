@@ -61,6 +61,7 @@ export const membersApi = {
   create: (data: MemberCreate) => apiClient.post<MemberResponse>('/api/members', data).then((r) => r.data),
   update: (id: string, data: Partial<MemberCreate & { is_active: boolean; is_admin: boolean }>) =>
     apiClient.patch<MemberResponse>(`/api/members/${id}`, data).then((r) => r.data),
+  delete: (id: string) => apiClient.delete(`/api/members/${id}`),
 }
 
 export const venuesApi = {

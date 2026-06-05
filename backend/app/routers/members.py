@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models.member import Member
 from app.schemas.member import MemberCreate, MemberResponse, MemberUpdate
+from app.services.auth_service import get_current_member
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -125,8 +126,21 @@ async def update_member(
 async def delete_member(
     member_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    current_member: Member = Depends(get_current_member),
 ) -> None:
-    """Deactivate (soft-delete) a member by setting is_active=False."""
+    """停用成员账号，保留历史业务数据。"""
+    if not current_member.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="无权限：只有管理员才能停用成员",
+        )
+    if current_member.id == member_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="无权限：不能停用当前登录成员",
+        )
     member = await _get_member_or_404(db, member_id)
+    if not member.is_active:
+        return
     member.is_active = False
     await db.flush()
