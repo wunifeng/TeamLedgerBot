@@ -1,4 +1,5 @@
 """成员垫付支出路由（含鉴权、编辑、历史）。"""
+import logging
 import uuid
 from datetime import date
 from decimal import Decimal
@@ -22,6 +23,7 @@ from app.services import expense_service, telegram_service
 from app.services.auth_service import get_current_member
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 _MAX_RECEIPT_BYTES = 10 * 1024 * 1024
 _ALLOWED_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp", ".pdf"}
 
@@ -40,6 +42,32 @@ async def _store_receipt(receipt: Optional[UploadFile]) -> Optional[str]:
     filename = f"{uuid.uuid4().hex}{suffix}"
     (upload_dir / filename).write_bytes(content)
     return f"/uploads/{filename}"
+
+
+async def _commit_expense_and_notify(
+    db: AsyncSession,
+    expense: MemberExpenseResponse,
+    operator: Member,
+) -> None:
+    """先提交垫付记录，再发送 Telegram，避免通知早于落库。"""
+
+    await db.commit()
+    logger.info(
+        "Member expense committed before Telegram notification: expense_id=%s member_id=%s operator_id=%s",
+        expense.id,
+        expense.member_id,
+        operator.id,
+    )
+    try:
+        await telegram_service.notify_member_expense(expense, operator_name=operator.name)
+    except Exception as exc:
+        logger.error(
+            "Telegram member expense notification failed after commit: expense_id=%s member_id=%s operator_id=%s error=%s",
+            expense.id,
+            expense.member_id,
+            operator.id,
+            exc,
+        )
 
 
 @router.post(
@@ -67,7 +95,7 @@ async def create_expense(
     receipt_url = await _store_receipt(receipt)
     if receipt_url:
         result = await expense_service.attach_receipt(db, result.id, receipt_url)
-    await telegram_service.notify_member_expense(result, operator_name=current_member.name)
+    await _commit_expense_and_notify(db, result, current_member)
     return result
 
 

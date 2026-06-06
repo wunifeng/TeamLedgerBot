@@ -103,6 +103,7 @@ async def notify_member_expense(expense: MemberExpenseResponse, operator_name: s
         f"<b>人员：</b> {escape(expense.member_name)}\n"
         f"<b>分类：</b> {escape(expense.category_name or '未分类')}\n"
         f"<b>金额：</b> {expense.amount}\n"
+        f"<b>记录ID：</b> {expense.id}\n"
         f"<b>备注：</b> {escape(expense.remark or '无')}\n"
         f"<b>操作人：</b> {escape(operator_name)}"
     )
