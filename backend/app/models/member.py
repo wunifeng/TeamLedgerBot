@@ -11,6 +11,7 @@ from sqlalchemy.types import TIMESTAMP
 from app.database import Base
 
 if TYPE_CHECKING:
+    from app.models.bankroll_entry import BankrollEntry
     from app.models.daily_flow_report import DailyFlowReport, FlowChangeLog
     from app.models.member_expense import MemberExpense, ExpenseChangeLog
     from app.models.salary_settlement import SalarySettlement
@@ -52,6 +53,18 @@ class Member(Base):
     )
     salary_settlements: Mapped[List["SalarySettlement"]] = relationship(
         "SalarySettlement", back_populates="member", lazy="select"
+    )
+    bankroll_entries: Mapped[List["BankrollEntry"]] = relationship(
+        "BankrollEntry",
+        back_populates="member",
+        foreign_keys="BankrollEntry.member_id",
+        lazy="select",
+    )
+    bankroll_voided_entries: Mapped[List["BankrollEntry"]] = relationship(
+        "BankrollEntry",
+        back_populates="voided_by",
+        foreign_keys="BankrollEntry.voided_by_member_id",
+        lazy="select",
     )
     flow_change_logs: Mapped[List["FlowChangeLog"]] = relationship(
         "FlowChangeLog", back_populates="operator", lazy="select"

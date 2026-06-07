@@ -1,5 +1,6 @@
 """SQLAlchemy ORM models — import all to register with metadata."""
 from app.models.member import Member
+from app.models.bankroll_entry import BankrollEntry
 from app.models.category import Category
 from app.models.venue import Venue
 from app.models.daily_flow_report import DailyFlowReport, SalaryAccrual
@@ -8,6 +9,7 @@ from app.models.salary_settlement import SalaryPayment, SalarySettlement
 
 __all__ = [
     "Member",
+    "BankrollEntry",
     "Category",
     "Venue",
     "DailyFlowReport",

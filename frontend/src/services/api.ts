@@ -1,5 +1,10 @@
 import apiClient from './apiClient'
 import type {
+  BankrollEntryCreate,
+  BankrollEntryListResponse,
+  BankrollEntryResponse,
+  BankrollEntryType,
+  BankrollSummaryResponse,
   CategoryResponse,
   DailyFlowCreate,
   DailyFlowListResponse,
@@ -55,6 +60,22 @@ export const salaryApi = {
     apiClient.post<SalaryPaymentResponse>(`/api/salary/settlements/${id}/pay`, data).then((r) => r.data),
   voidPayment: (id: string, data: { reason?: string }) =>
     apiClient.post<SalaryPaymentResponse>(`/api/salary/payments/${id}/void`, data).then((r) => r.data),
+}
+
+export const bankrollApi = {
+  summary: () => apiClient.get<BankrollSummaryResponse>('/api/bankroll/summary').then((r) => r.data),
+  entries: (params?: {
+    member_id?: string
+    entry_type?: BankrollEntryType
+    start_date?: string
+    end_date?: string
+    include_voided?: boolean
+    page?: number
+    limit?: number
+  }) => apiClient.get<BankrollEntryListResponse>('/api/bankroll/entries', { params }).then((r) => r.data),
+  create: (data: BankrollEntryCreate) => apiClient.post<BankrollEntryResponse>('/api/bankroll/entries', data).then((r) => r.data),
+  voidEntry: (id: string, data: { reason: string }) =>
+    apiClient.post<BankrollEntryResponse>(`/api/bankroll/entries/${id}/void`, data).then((r) => r.data),
 }
 
 export const membersApi = {

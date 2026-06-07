@@ -6,12 +6,24 @@ from typing import Optional
 import httpx
 
 from app.config import settings
+from app.schemas.bankroll import BankrollEntryResponse
 from app.schemas.expense import MemberExpenseResponse
 from app.schemas.flow import DailyFlowResponse
 from app.schemas.salary import SalaryPaymentResponse
 
 logger = logging.getLogger(__name__)
 _API = "https://api.telegram.org/bot{token}/sendMessage"
+
+_BANKROLL_TYPE_LABELS = {
+    "initial": "初始",
+    "top_up": "补充",
+    "return": "退回",
+    "adjustment": "调整",
+}
+_BANKROLL_DIRECTION_LABELS = {
+    "increase": "增加",
+    "decrease": "减少",
+}
 
 
 async def _send(text: str) -> None:
@@ -166,5 +178,39 @@ async def notify_salary_payment_voided(result: SalaryPaymentResponse, operator_n
         f"<b>作废金额：</b> {result.payment.amount}\n"
         f"<b>剩余未付：</b> {result.settlement.unpaid_amount}\n"
         f"<b>作废原因：</b> {escape(result.payment.void_reason or '无')}\n"
+        f"<b>操作人：</b> {escape(operator_name)}"
+    )
+
+
+async def notify_bankroll_entry(entry: BankrollEntryResponse, operator_name: str) -> None:
+    """发送新增 bankroll 变动通知。"""
+
+    direction = ""
+    if entry.adjustment_direction:
+        direction = f"（{_BANKROLL_DIRECTION_LABELS.get(entry.adjustment_direction, entry.adjustment_direction)}）"
+    await _send(
+        "<b>新增 Bankroll 变动</b>\n\n"
+        f"<b>日期：</b> {entry.business_date}\n"
+        f"<b>人员：</b> {escape(entry.member_name)}\n"
+        f"<b>类型：</b> {escape(_BANKROLL_TYPE_LABELS.get(entry.entry_type, entry.entry_type))}{escape(direction)}\n"
+        f"<b>金额：</b> {entry.amount}\n"
+        f"<b>余额影响：</b> {entry.signed_amount}\n"
+        f"<b>记录ID：</b> {entry.id}\n"
+        f"<b>备注：</b> {escape(entry.remark or '无')}\n"
+        f"<b>操作人：</b> {escape(operator_name)}"
+    )
+
+
+async def notify_bankroll_entry_voided(entry: BankrollEntryResponse, operator_name: str) -> None:
+    """发送 bankroll 变动作废通知。"""
+
+    await _send(
+        "<b>Bankroll 变动作废</b>\n\n"
+        f"<b>人员：</b> {escape(entry.member_name)}\n"
+        f"<b>原类型：</b> {escape(_BANKROLL_TYPE_LABELS.get(entry.entry_type, entry.entry_type))}\n"
+        f"<b>原金额：</b> {entry.amount}\n"
+        f"<b>原余额影响：</b> {entry.signed_amount}\n"
+        f"<b>记录ID：</b> {entry.id}\n"
+        f"<b>作废原因：</b> {escape(entry.void_reason or '无')}\n"
         f"<b>操作人：</b> {escape(operator_name)}"
     )

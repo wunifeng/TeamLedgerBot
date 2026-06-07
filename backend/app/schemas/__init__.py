@@ -1,5 +1,6 @@
 """Pydantic schemas — export all for convenient imports."""
 from app.schemas.member import MemberCreate, MemberUpdate, MemberResponse
+from app.schemas.bankroll import BankrollEntryCreate, BankrollEntryListResponse, BankrollEntryResponse, BankrollSummaryResponse
 from app.schemas.category import CategoryCreate, CategoryUpdate, CategoryResponse
 from app.schemas.dashboard import DailyTrendResponse, SummaryResponse, VenueBreakdownResponse
 from app.schemas.expense import MemberExpenseListResponse, MemberExpenseResponse, MemberExpenseStatusUpdate
@@ -9,6 +10,7 @@ from app.schemas.venue import VenueCreate, VenueResponse, VenueUpdate
 
 __all__ = [
     "MemberCreate", "MemberUpdate", "MemberResponse",
+    "BankrollEntryCreate", "BankrollEntryListResponse", "BankrollEntryResponse", "BankrollSummaryResponse",
     "CategoryCreate", "CategoryUpdate", "CategoryResponse",
     "VenueCreate", "VenueUpdate", "VenueResponse",
     "DailyFlowCreate", "DailyFlowResponse", "DailyFlowListResponse",

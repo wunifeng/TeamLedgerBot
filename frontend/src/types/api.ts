@@ -1,4 +1,6 @@
 export type SalarySettlementStatus = 'unpaid' | 'partial' | 'paid'
+export type BankrollEntryType = 'initial' | 'top_up' | 'return' | 'adjustment'
+export type BankrollAdjustmentDirection = 'increase' | 'decrease'
 
 export interface MemberResponse {
   id: string
@@ -155,6 +157,53 @@ export interface SalaryPaymentItem {
   paid_at: string
   voided_at: string | null
   void_reason: string | null
+}
+
+export interface BankrollEntryCreate {
+  business_date: string
+  member_id: string
+  entry_type: BankrollEntryType
+  amount: number
+  adjustment_direction?: BankrollAdjustmentDirection
+  remark?: string
+}
+
+export interface BankrollEntryResponse {
+  id: string
+  business_date: string
+  member_id: string
+  member_name: string
+  entry_type: BankrollEntryType
+  amount: number
+  adjustment_direction: BankrollAdjustmentDirection | null
+  signed_amount: number
+  remark: string | null
+  voided_at: string | null
+  void_reason: string | null
+  voided_by_member_id: string | null
+  voided_by_name: string | null
+  created_at: string
+}
+
+export interface BankrollEntryListResponse {
+  items: BankrollEntryResponse[]
+  total: number
+  page: number
+  limit: number
+  pages: number
+}
+
+export interface BankrollMemberBalance {
+  member_id: string
+  member_name: string
+  role: string | null
+  is_active: boolean
+  balance: number
+}
+
+export interface BankrollSummaryResponse {
+  items: BankrollMemberBalance[]
+  total_balance: number
 }
 
 export interface SummaryResponse {

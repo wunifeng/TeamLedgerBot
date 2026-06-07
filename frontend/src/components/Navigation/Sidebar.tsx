@@ -6,7 +6,7 @@ const navItems = [
   { to: '/', icon: LayoutDashboard, label: '仪表盘', end: true },
   { to: '/transactions', icon: ArrowLeftRight, label: '流水明细' },
   { to: '/expenses', icon: ReceiptText, label: '成员垫付' },
-  { to: '/members', icon: Users, label: '成员薪资' },
+  { to: '/members', icon: Users, label: '成员管理' },
   { to: '/settings', icon: Settings, label: '设置' },
 ]
 
